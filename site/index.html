@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>FoxLoop — a second Linux screen you can draw on</title>
+<meta name="description" content="FoxLoop turns a Samsung Galaxy Tab into an extended Linux display over one USB cable, with full S Pen pressure, tilt and hover. Open source, no kernel drivers.">
+<link rel="icon" href="assets/mark.svg" type="image/svg+xml">
+<link rel="canonical" href="https://v-inn.github.io/FoxLoop/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="FoxLoop — a second Linux screen you can draw on">
+<meta property="og:description" content="A Samsung Galaxy Tab as an extended Linux display over one USB cable, with full S Pen pressure, tilt and hover.">
+<meta property="og:url" content="https://v-inn.github.io/FoxLoop/">
+<meta property="og:image" content="https://v-inn.github.io/FoxLoop/assets/demo-pen.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@125,600&family=IBM+Plex+Mono&family=IBM+Plex+Sans:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="masthead">
+  <div class="wrap masthead__inner">
+    <a class="brand" href="index.html">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M27 13.5 V20 A7 7 0 0 1 20 27 H12 A7 7 0 0 1 5 20 V12 A7 7 0 0 1 12 5 H18.5 C25 5 30 10 24.5 14.5" fill="none" stroke="#F97316" stroke-width="4.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      FoxLoop
+    </a>
+    <nav class="nav">
+      <a href="#how">How it works</a>
+      <a href="install.html">Install</a>
+      <a href="https://github.com/V-inn/FoxLoop">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+
+  <div class="hero">
+    <div class="hero__text">
+      <h1>A second Linux screen, over one cable.</h1>
+      <p class="lede">FoxLoop turns a Samsung Galaxy Tab into an extended desktop display — and into a drawing tablet, with the S Pen's pressure, tilt, hover and side button all reaching Linux as a real digitiser would.</p>
+      <div class="actions">
+        <a class="btn" href="install.html">Install FoxLoop</a>
+        <a href="https://github.com/V-inn/FoxLoop">Read the source</a>
+      </div>
+    </div>
+    <div class="well hero__well">
+      <video src="assets/demo-extend.mp4" poster="assets/demo-extend.jpg"
+             autoplay muted loop playsinline preload="metadata"
+             width="1280" height="720"
+             aria-label="A window is dragged from a laptop screen onto a tablet propped beside it, where it keeps running."></video>
+    </div>
+  </div>
+
+  <section class="section rule-top">
+    <div class="wrap">
+      <div class="measures">
+        <div>
+          <p class="figure-lead">55<span>ms</span></p>
+          <p>Glass to glass, measured with a camera rather than a log line.</p>
+        </div>
+        <ul class="supports">
+          <li><b>4096</b><span>pressure levels from the S Pen, plus tilt and about a centimetre of hover</span></li>
+          <li><b>0</b><span>kernel modules, out-of-tree drivers or firmware blobs to install</span></li>
+          <li><b>1</b><span>USB cable, and one udev rule that needs root exactly once</span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--band">
+    <div class="wrap">
+      <h2>Pressure and tilt, in the apps you already draw in</h2>
+      <p class="lede">The pen arrives as a graphics tablet, not as a mouse. It is created through <code>uinput</code>, the same facility a Wacom driver reports through, so an application that already understands a Linux digitiser understands this one — with no plugin, no driver and nothing to configure.</p>
+      <figure class="demo" style="margin-top:clamp(28px,4vw,44px)">
+        <div class="well">
+          <video src="assets/demo-pen.mp4" poster="assets/demo-pen.jpg"
+                 autoplay muted loop playsinline preload="metadata"
+                 width="1280" height="720"
+                 aria-label="A hand draws a curve in GIMP on the tablet with the S Pen; the stroke thickens and thins with pressure."></video>
+        </div>
+        <figcaption>Drawing in GIMP with the S Pen. Pressure and tilt reach the brush live, through the same Linux input facility a Wacom tablet uses — so the applications you already use need no plugin and no configuration.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="section" id="how">
+    <div class="wrap">
+      <h2>How it works</h2>
+      <div class="prose">
+        <p>Two programs and a cable. A daemon on your computer creates a virtual monitor, captures it, and encodes it to H.264 on the GPU. An app on the tablet decodes the stream and draws it. Pen and finger input travel back along the same cable and become real Linux input devices.</p>
+      </div>
+
+      <figure class="diagram">
+        <svg viewBox="0 0 900 270" role="img" aria-label="Diagram: the Linux desktop sends H.264 video over USB to the Galaxy Tab, and the tablet sends pen pressure, tilt and touch back along the same cable.">
+          <defs>
+            <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto">
+              <path d="M0 0 L10 5 L0 10 Z" fill="#F97316"/>
+            </marker>
+          </defs>
+
+          <rect x="40" y="100" width="205" height="100" rx="12" fill="none" stroke="currentColor" stroke-opacity=".32" stroke-width="2"/>
+          <text class="d-title" x="142" y="143" text-anchor="middle">Your Linux desktop</text>
+          <text class="d-sub" x="142" y="167" text-anchor="middle">the daemon</text>
+
+          <rect x="655" y="100" width="205" height="100" rx="12" fill="none" stroke="currentColor" stroke-opacity=".32" stroke-width="2"/>
+          <text class="d-title" x="757" y="143" text-anchor="middle">Galaxy Tab</text>
+          <text class="d-sub" x="757" y="167" text-anchor="middle">the app</text>
+
+          <path d="M245 130 C 370 75, 530 75, 655 130" fill="none" stroke="#F97316" stroke-width="3" marker-end="url(#arrow)"/>
+          <text class="d-flow" x="450" y="72" text-anchor="middle">H.264 video, encoded on the GPU</text>
+
+          <path d="M655 170 C 530 225, 370 225, 245 170" fill="none" stroke="#F97316" stroke-width="3" marker-end="url(#arrow)"/>
+          <text class="d-flow" x="450" y="240" text-anchor="middle">pen pressure, tilt, hover, touch</text>
+        </svg>
+        <figcaption>Out: a virtual monitor, captured through PipeWire and encoded by the GPU, sent over USB. Back: pen and touch records, turned into a virtual tablet and touchpad.</figcaption>
+      </figure>
+
+      <div class="prose" style="margin-top:clamp(30px,4vw,44px)">
+        <p>None of that needs new kernel code. Screen capture goes through PipeWire and the desktop's own screen-cast machinery — the same plumbing OBS and Sunshine use. Input goes through <code>uinput</code>, the standard Linux virtual-input facility.</p>
+        <p>FoxLoop needs root exactly once, to install a single udev rule granting your user access to <code>/dev/uinput</code>. That rule is byte-for-byte the one Steam ships, so on a machine with Steam installed it changes nothing. Nothing else runs as root, nothing is added to your groups, and nothing starts at boot.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--band">
+    <div class="wrap">
+      <h2>What you need</h2>
+      <div class="needs">
+        <div>
+          <h3>A tablet with an S Pen</h3>
+          <p>Samsung Galaxy Tab S9 FE or newer, S10 FE or newer — anything with a Wacom EMR S Pen. The pen is the part that matters; that digitiser is what carries pressure and tilt.</p>
+        </div>
+        <div>
+          <h3>KDE Plasma or GNOME</h3>
+          <p>On Wayland. The virtual monitor is made through compositor-specific machinery and there is no portable way to do it, so nothing else is supported yet.</p>
+        </div>
+        <div>
+          <h3>A GPU that encodes H.264</h3>
+          <p>Through VAAPI, which means Intel or AMD graphics. <strong>NVIDIA does not work.</strong> The encoder is hardware-only, with no software fallback. To check:</p>
+          <pre class="code"><code>vainfo | grep -E 'VAProfileH264.*EncSlice'</code></pre>
+          <p>Nothing printed means FoxLoop will not run.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <h2>What it does</h2>
+      <ul class="marked marked--two" style="margin-top:clamp(24px,3vw,36px)">
+        <li>A real second display, not a mirror: windows move onto the tablet and keep running there.</li>
+        <li>Plug the tablet in and it starts on its own — the daemon connects straight to the tablet, with no <code>adb</code> relay in the way.</li>
+        <li>Full S Pen input: pressure, tilt, hover, and a side button you can remap to right click, middle click or eraser.</li>
+        <li>Multi-touch gestures — two-finger scroll, pinch to zoom, tap to click — recognised the way a laptop touchpad's are, and configurable in the same settings panel.</li>
+        <li>Rotate the desktop by any quarter turn. A portrait desktop then fills the landscape panel exactly.</li>
+        <li>Run the desktop smaller than the panel, so everything on it is bigger.</li>
+        <li>A settings screen on the tablet for rotation, desktop size, picture quality, frame rate, pointer mode, gestures and the pen's side button.</li>
+        <li>Keeps the tablet awake while a desktop is on it, and lets it sleep when there is not.</li>
+        <li>Recovers on its own from a pulled cable, an app restart or a daemon restart.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="section section--band">
+    <div class="wrap">
+      <h2>Where it stands</h2>
+      <p class="lede">The core path works end to end on KDE Plasma — display, pen, multi-touch, auto-launch and auto-reconnect are all in place, and the latency target was met. Three things are worth knowing before you try it.</p>
+      <div class="standing" style="margin-top:clamp(28px,4vw,40px)">
+        <div>
+          <h3>GNOME support is written but untested</h3>
+          <p>GNOME's compositor has its own virtual-monitor interface, which fits better than KDE's — it creates the display and streams it in one step, with no picker dialog. That path is implemented, compiles and is unit-tested, and the daemon selects it automatically on a GNOME session. Nobody has yet run it against a real GNOME desktop, because the only machine this is developed on runs Plasma. The daemon logs every stage of setup; a bug report with that output is exactly what it needs.</p>
+        </div>
+        <div>
+          <h3>Every measurement comes from one device</h3>
+          <p>A Galaxy Tab S9 FE+, on one laptop, on KDE Plasma. The 55 ms figure is honest and repeatable there. It is not a survey.</p>
+        </div>
+        <div>
+          <h3>The tablet often starts out mirroring</h3>
+          <p>A known gap on KDE: the new display frequently comes up duplicating your main screen instead of extending it, and has to be switched over by hand in display settings. Whether GNOME behaves the same way is one of the things a first real run there would answer.</p>
+        </div>
+      </div>
+      <p style="margin-top:clamp(28px,4vw,38px)"><a href="https://github.com/V-inn/FoxLoop/blob/main/MILESTONES.md">The full history is in MILESTONES.md</a> — including what was tried and abandoned, which is most of what it records.</p>
+    </div>
+  </section>
+
+</main>
+
+<footer class="colophon">
+  <div class="wrap colophon__inner">
+    <p style="margin:0">MIT licensed. Built by Vinicius Flesch Kern.</p>
+    <ul>
+      <li><a href="install.html">Install</a></li>
+      <li><a href="https://github.com/V-inn/FoxLoop">Source</a></li>
+      <li><a href="https://github.com/V-inn/FoxLoop/blob/main/MILESTONES.md">Milestones</a></li>
+      <li><a href="privacy.html">Privacy</a></li>
+    </ul>
+  </div>
+</footer>
+
+</body>
+</html>

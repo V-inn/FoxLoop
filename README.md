@@ -154,7 +154,11 @@ open.
 
 ## Repo layout
 
-- `assets/` — GIFs used in this README.
+- `site/` — the project page at <https://v-inn.github.io/FoxLoop/>, published from
+  `.github/workflows/pages.yml`. Hand-written HTML, served as committed. It keeps
+  its own copies of the two demo videos above, re-encoded small enough to track;
+  a relative path in this file would render as a link rather than a player, so
+  the duplication is deliberate and the two can drift.
 - `daemon/` — the Linux-side program (written in Rust) that talks to the tablet:
   captures the screen, sends video to it, and turns pen input back into something
   Linux understands. [Build and run instructions](./daemon/README.md).

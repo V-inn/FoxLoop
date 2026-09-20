@@ -1,0 +1,689 @@
+/*
+  FoxLoop site styles.
+
+  Palette note, because the numbers drove the design and a later editor will
+  otherwise "simplify" it into an accessibility bug: orange on a light ground is
+  contrast-hostile, so the accent is two colours with two jobs that must not be
+  swapped.
+
+    --fill   #F97316  2.62:1 on the ground -- fills, marks, rules, the diagram.
+                      Never carries body-size text.
+    --accent #B83C0A  5.33:1 on the ground -- links, small accent text.
+
+  --accent is a shade darker than it looks like it needs to be, and that is
+  deliberate: half the page's sections sit on --band rather than --ground, and a
+  lighter orange that passed on one failed on the other (#C2410C measures 4.85
+  on the ground but 4.48 on the band, just under). One colour that clears both
+  beats two that each work in one place.
+
+  And a button filled with --fill takes an ink label, never a white one: white
+  on #F97316 is 2.80:1, ink on it is 5.41:1. That is why --on-fill is dark.
+*/
+
+:root {
+  --ground: #faf7f2;
+  --band: #f3eee5;
+  --ink: #23262b;
+  --muted: #5a6068;
+  --fill: #f97316;
+  --accent: #b83c0a;
+  --on-fill: #23262b;
+  --recess: #2a2f35;
+  --rule: #e5ded3;
+
+  --display: "Archivo", ui-sans-serif, system-ui, sans-serif;
+  --body: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+  --page: 1120px;
+  --gutter: clamp(20px, 4vw, 40px);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ground: #16181b;
+    --band: #1d2024;
+    --ink: #ece8e2;
+    --muted: #a5acb5;
+    --accent: #ff9e63;
+    --recess: #0e1012;
+    --rule: #2f343a;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: 17px;
+  line-height: 1.62;
+  -webkit-font-smoothing: antialiased;
+  overflow-wrap: break-word;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--display);
+  font-stretch: 125%;
+  font-weight: 600;
+  line-height: 1.08;
+  letter-spacing: -0.015em;
+  margin: 0;
+  text-wrap: balance;
+}
+
+h1 {
+  font-size: clamp(2.2rem, 4.4vw, 3.5rem);
+}
+
+h2 {
+  font-size: clamp(1.65rem, 3.2vw, 2.4rem);
+}
+
+h3 {
+  font-size: 1.1rem;
+  line-height: 1.3;
+  letter-spacing: 0;
+}
+
+p {
+  margin: 0 0 1.1em;
+}
+
+h1 + p,
+h2 + p,
+h2 + .prose,
+h2 + figure {
+  margin-top: 0.8em;
+}
+
+a {
+  color: var(--accent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+a:hover {
+  text-decoration-thickness: 2px;
+}
+
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+code,
+kbd {
+  font-family: var(--mono);
+  font-size: 0.88em;
+}
+
+/* ---- shell ---------------------------------------------------------- */
+
+.wrap {
+  max-width: var(--page);
+  margin: 0 auto;
+  padding-inline: var(--gutter);
+}
+
+.prose {
+  max-width: 64ch;
+}
+
+.prose h2 {
+  margin-top: 1.9em;
+}
+
+.prose h2:first-child {
+  margin-top: 0;
+}
+
+.section {
+  padding-block: clamp(52px, 8vw, 100px);
+}
+
+.section--band {
+  background: var(--band);
+}
+
+.rule-top {
+  border-top: 1px solid var(--rule);
+}
+
+.lede {
+  font-size: clamp(1.05rem, 1.6vw, 1.22rem);
+  color: var(--muted);
+  max-width: 58ch;
+}
+
+.skip {
+  position: absolute;
+  left: -9999px;
+}
+
+.skip:focus {
+  left: var(--gutter);
+  top: 10px;
+  z-index: 10;
+  background: var(--fill);
+  color: var(--on-fill);
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+}
+
+/* ---- header --------------------------------------------------------- */
+
+.masthead {
+  border-bottom: 1px solid var(--rule);
+}
+
+.masthead__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding-block: 16px;
+  flex-wrap: wrap;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: inherit;
+  text-decoration: none;
+  font-family: var(--display);
+  font-stretch: 125%;
+  font-weight: 600;
+  font-size: 1.12rem;
+  letter-spacing: -0.01em;
+}
+
+.brand svg {
+  display: block;
+  width: 26px;
+  height: 26px;
+  flex: none;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: clamp(14px, 2.4vw, 28px);
+  font-size: 0.94rem;
+}
+
+.nav a {
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.nav a:hover,
+.nav a[aria-current] {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+/* ---- hero ----------------------------------------------------------- */
+
+/*
+  The video runs off the right edge of the viewport on purpose: the footage is
+  a photograph of a real desk, and letting it leave the page says it continues
+  past the screen. The left rounding is the only rounding it gets, for the same
+  reason -- a corner it never reaches is a corner it should not have.
+*/
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(28px, 4.5vw, 60px);
+  padding-left: max(var(--gutter), calc((100vw - var(--page)) / 2 + var(--gutter)));
+  padding-block: clamp(44px, 7vw, 88px);
+}
+
+.hero h1 {
+  margin-bottom: 0.5em;
+  max-width: 15ch;
+}
+
+.hero .lede {
+  max-width: 42ch;
+}
+
+.hero__well {
+  border-radius: 16px 0 0 16px;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: clamp(16px, 2.4vw, 26px);
+  flex-wrap: wrap;
+  margin-top: 28px;
+}
+
+.btn {
+  display: inline-block;
+  background: var(--fill);
+  color: var(--on-fill);
+  font-weight: 600;
+  font-size: 1rem;
+  padding: 0.82em 1.45em;
+  border-radius: 9px;
+  text-decoration: none;
+  border: 1px solid transparent;
+}
+
+.btn:hover {
+  background: #e4640b;
+}
+
+@media (prefers-color-scheme: dark) {
+  .btn:hover {
+    background: #ff8a33;
+  }
+}
+
+/* ---- video wells ---------------------------------------------------- */
+
+.well {
+  background: var(--recess);
+  overflow: hidden;
+  line-height: 0;
+}
+
+.well video,
+.well img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.demo {
+  margin: 0;
+}
+
+.demo .well {
+  border-radius: 14px;
+}
+
+.demo figcaption {
+  margin-top: 14px;
+  color: var(--muted);
+  font-size: 0.97rem;
+  max-width: 58ch;
+  line-height: 1.55;
+}
+
+.demo-pair {
+  display: grid;
+  gap: clamp(28px, 4vw, 44px);
+}
+
+@media (min-width: 900px) {
+  .demo-pair {
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
+}
+
+/* ---- the lead figure and its three supports ------------------------- */
+
+.measures {
+  display: grid;
+  gap: clamp(26px, 4vw, 52px);
+  align-items: center;
+}
+
+@media (min-width: 820px) {
+  .measures {
+    grid-template-columns: auto 1fr;
+  }
+}
+
+.figure-lead {
+  font-family: var(--mono);
+  font-size: clamp(3.6rem, 9vw, 6rem);
+  line-height: 0.9;
+  letter-spacing: -0.04em;
+  color: var(--fill);
+  margin: 0;
+}
+
+.figure-lead span {
+  font-size: 0.32em;
+  letter-spacing: 0;
+  margin-left: 0.15em;
+  color: var(--ink);
+}
+
+.figure-lead + p {
+  margin: 14px 0 0;
+  max-width: 24ch;
+  color: var(--muted);
+  font-size: 0.97rem;
+}
+
+.supports {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.supports li {
+  display: grid;
+  grid-template-columns: 5.2ch 1fr;
+  gap: 18px;
+  align-items: baseline;
+  padding-block: 14px;
+  border-top: 1px solid var(--rule);
+}
+
+.supports li:last-child {
+  border-bottom: 1px solid var(--rule);
+}
+
+.supports b {
+  font-family: var(--mono);
+  font-weight: 400;
+  font-size: 1.32rem;
+  color: var(--ink);
+  text-align: right;
+}
+
+/* ---- the loop diagram ----------------------------------------------- */
+
+.diagram {
+  margin: clamp(30px, 4vw, 46px) 0 0;
+  overflow-x: auto;
+}
+
+.diagram svg {
+  display: block;
+  width: 100%;
+  min-width: 660px;
+  height: auto;
+}
+
+.diagram figcaption {
+  margin-top: 16px;
+  color: var(--muted);
+  font-size: 0.94rem;
+  max-width: 62ch;
+}
+
+/* SVG text takes no inherited font, so the diagram's labels are styled here
+   rather than with presentation attributes -- it keeps them on the same type
+   scale as the page, dark mode included. */
+.diagram svg {
+  color: var(--ink);
+}
+
+.d-title {
+  font-family: var(--body);
+  font-size: 17px;
+  font-weight: 600;
+  fill: currentColor;
+}
+
+.d-sub {
+  font-family: var(--mono);
+  font-size: 13px;
+  fill: currentColor;
+  opacity: 0.55;
+}
+
+.d-flow {
+  font-family: var(--mono);
+  font-size: 14px;
+  fill: currentColor;
+  opacity: 0.75;
+}
+
+/* ---- plain lists ---------------------------------------------------- */
+
+.marked {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 15px;
+}
+
+@media (min-width: 780px) {
+  .marked--two {
+    grid-template-columns: 1fr 1fr;
+    column-gap: clamp(30px, 5vw, 60px);
+  }
+}
+
+.marked li {
+  position: relative;
+  padding-left: 22px;
+  max-width: 46ch;
+}
+
+.marked li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.62em;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--fill);
+}
+
+.needs {
+  display: grid;
+  gap: 26px;
+  margin-top: 34px;
+}
+
+@media (min-width: 860px) {
+  .needs {
+    grid-template-columns: repeat(3, 1fr);
+    gap: clamp(26px, 4vw, 48px);
+  }
+}
+
+.needs h3 {
+  margin-bottom: 8px;
+}
+
+.needs p {
+  color: var(--muted);
+  font-size: 0.97rem;
+  margin-bottom: 0.7em;
+}
+
+/* ---- code ----------------------------------------------------------- */
+
+.code {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  line-height: 1.7;
+  background: var(--recess);
+  color: #e8e6e1;
+  padding: 16px 18px;
+  border-radius: 10px;
+  overflow-x: auto;
+  margin: 0 0 1.1em;
+}
+
+.code b {
+  color: #ffb375;
+  font-weight: 400;
+}
+
+/* ---- the honest block ----------------------------------------------- */
+
+/*
+  Given its own weight rather than a footnote, because the project's whole
+  documentation habit is to say plainly what has not been verified. A landing
+  page that buried this would be the first place that stopped doing it.
+*/
+.standing {
+  border-left: 4px solid var(--fill);
+  padding: 4px 0 4px 26px;
+  max-width: 64ch;
+}
+
+.standing h3 {
+  margin-bottom: 6px;
+}
+
+.standing > div + div {
+  margin-top: 24px;
+}
+
+.standing p {
+  margin-bottom: 0;
+  color: var(--muted);
+}
+
+/* ---- tables --------------------------------------------------------- */
+
+.table-scroll {
+  overflow-x: auto;
+  margin-bottom: 1.4em;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 560px;
+  font-size: 0.95rem;
+}
+
+th,
+td {
+  text-align: left;
+  vertical-align: top;
+  padding: 13px 18px 13px 0;
+  border-top: 1px solid var(--rule);
+}
+
+th {
+  font-weight: 600;
+  border-top: 0;
+  border-bottom: 2px solid var(--rule);
+  padding-top: 0;
+}
+
+td code {
+  color: var(--accent);
+}
+
+/* ---- steps ---------------------------------------------------------- */
+
+/* Numbered because installing genuinely is a sequence -- do the second thing
+   before the first and the pen permission does not reach your session. */
+.steps {
+  counter-reset: step;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.steps > li {
+  counter-increment: step;
+  position: relative;
+  padding-left: 52px;
+  padding-bottom: clamp(30px, 4vw, 46px);
+}
+
+.steps > li::before {
+  content: counter(step);
+  position: absolute;
+  left: 0;
+  top: -2px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--fill);
+  color: var(--on-fill);
+  font-family: var(--mono);
+  font-size: 0.92rem;
+  display: grid;
+  place-items: center;
+}
+
+.steps > li:last-child {
+  padding-bottom: 0;
+}
+
+.steps h3 {
+  margin-bottom: 10px;
+}
+
+/* ---- footer --------------------------------------------------------- */
+
+.colophon {
+  border-top: 1px solid var(--rule);
+  padding-block: 40px 56px;
+  font-size: 0.94rem;
+  color: var(--muted);
+}
+
+.colophon__inner {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px 34px;
+  flex-wrap: wrap;
+}
+
+.colophon ul {
+  list-style: none;
+  display: flex;
+  gap: 22px;
+  margin: 0;
+  padding: 0;
+  flex-wrap: wrap;
+}
+
+/* ---- narrow --------------------------------------------------------- */
+
+@media (max-width: 899px) {
+  .hero {
+    grid-template-columns: 1fr;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .hero__text {
+    max-width: none;
+    padding-inline: var(--gutter);
+  }
+
+  .hero__well {
+    border-radius: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
