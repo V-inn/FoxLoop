@@ -3584,3 +3584,118 @@ numbering rule simply does not apply to it. The 60 rule is moot on this machine
 anyway: `/dev/uinput` already carries a `user:vini:rw-` ACL granted by
 `60-steam-input.rules`, which is what `install.sh` detects when it says there is
 nothing to do for input.
+
+## 31. The rename broke pen input, in two files nobody thinks to grep
+
+Milestone 30 renamed the project and checked the build, the tests, the
+handshake, the latency and auto-launch. All of it passed. Then the pen stopped
+working, in two different ways at once, and neither was visible from inside the
+repository.
+
+### The symptoms, and the wrong diagnosis
+
+Two complaints: **pen pressure did nothing in GIMP**, and **the pen moved the
+cursor on the laptop screen instead of the tablet's**. The first sounded like a
+GIMP brush setting; the request was to reset all tools to defaults.
+
+That would have made it worse. GIMP's default dynamics are *off*, so resetting
+every tool would have removed pressure response from the brushes that still had
+it — turning a config-lookup failure into a real loss of settings, and leaving
+the actual cause untouched.
+
+### The daemon was never at fault
+
+Worth stating plainly, because two hours of investigation went into proving it
+and a future session should not repeat the work. The whole input chain was
+verified healthy on the renamed build:
+
+- The daemon receives real S Pen events with varying pressure:
+  `[input] event 4100: type=4 x=933 y=743 pressure=503 finger=false`
+  (`type=4` is `EV_MOVE`, so `in_contact` is true; `type=1` is `EV_HOVER_MOVE`,
+  where pressure is forced to 0 — see `input_receiver.rs`).
+- The uinput device advertises the right capabilities: `ABS=d000003` decodes to
+  `ABS_X`, `ABS_Y`, `ABS_PRESSURE` (bit 24) and `ABS_TILT_X/Y` (bits 26/27);
+  `KEY=1c03` gives `BTN_TOOL_PEN`, `BTN_TOOL_RUBBER`, `BTN_TOUCH`, `BTN_STYLUS`,
+  `BTN_STYLUS2`.
+- libinput builds a proper tablet tool out of it — 822 `TABLET_TOOL_AXIS`
+  events, `TABLET_TOOL_TIP down`/`up`, `TABLET_TOOL_PROXIMITY`, pressure ranging
+  0.00 → 0.74 normalized.
+
+A trap on the way: an `evtest` capture started *mid-session* shows no
+`BTN_TOOL_PEN` at all, which reads exactly like a missing proximity event.
+It is not. `tool_in_proximity` in `uinput_tablet.rs` is a `Cell<bool>` set on
+the first `emit()` and never cleared, so `BTN_TOOL_PEN value 1` is sent **once
+per daemon process** and any capture started later misses it. Capture from a
+daemon restart, or read the code, before concluding proximity is broken.
+
+### Where it actually broke: external config keyed by device name
+
+Milestone 30 was careful about one class of external key — the four
+`quillKey*` Gradle properties in `~/.gradle/gradle.properties`, deliberately
+left alone because renaming them fails silently into an unsigned build. It
+missed that **the uinput device name and the virtual output name are external
+keys too**, and two applications had saved settings under the old ones:
+
+`~/.config/kcminputrc` — KWin's per-device input settings, keyed by
+`[Libinput][vendor][product][device name]`:
+
+    [Libinput][4617][1][Quill Virtual Tablet]
+    OutputArea=0,0,1,1
+    OutputName=Virtual-QuillDisplay
+
+Both halves broke at once. The section no longer matched a device now called
+`FoxLoop Virtual Tablet`, and its value named `Virtual-QuillDisplay`, an output
+that no longer exists. A tablet is an *absolute* device: with no mapping KWin
+falls back to a default output, which is why the pen drove the laptop screen
+while video went to the tablet. **Tablet-to-output mapping is independent of
+the display arrangement** — extending the desktop correctly does not map an
+absolute input device, and the two are configured in different places.
+
+`~/.config/GIMP/3.0/devicerc` — GIMP's per-device tool settings, keyed by name:
+
+    (GimpDeviceInfo "Master pointer for Quill Virtual Tablet"
+        (dynamics "Pressure Size")
+
+Renamed out from under it, GIMP saw an unknown device and applied defaults —
+dynamics off. The pressure setting was never lost, just orphaned.
+
+### The fix
+
+`kcminputrc` was migrated to `[Libinput][4617][1][FoxLoop Virtual Tablet]` with
+`OutputName=Virtual-FoxLoopDisplay`, and applied live without a logout by
+setting the `outputName` property on KWin's DBus object for the device:
+
+    qdbus6 org.kde.KWin /org/kde/KWin/InputDevice/event19 \
+      org.freedesktop.DBus.Properties.Set org.kde.KWin.InputDevice \
+      outputName "Virtual-FoxLoopDisplay"
+
+(The per-device objects are under `/org/kde/KWin/InputDevice/<sysname>`; the
+sysnames come from the `devicesSysNames` property on `/org/kde/KWin/InputDevice`
+read through `org.freedesktop.DBus.Properties.Get` — the
+`org.kde.KWin.InputDeviceManager` interface is not callable directly.)
+
+GIMP's `devicerc` could not be migrated in place because **GIMP rewrites it from
+memory on exit**, discarding any edit made while it runs. The migration is
+staged as `~/.local/bin/foxloop-migrate-gimp-devices`, which refuses to run
+while GIMP is open and backs the file up first.
+
+### The general rule
+
+**A user-visible device or output name is an external key. Renaming it silently
+orphans configuration in the compositor and in every application that saved
+per-device settings.** Neither `git grep` nor a sweep of the repository can see
+this; the evidence lives in `~/.config`. After renaming such a name, grep
+`~/.config` and `~/.local/share` for the old one.
+
+### Not verified
+
+- **Nothing has been drawn with the pen since the fix.** The mapping was
+  confirmed by injecting a touch with `adb` and seeing it land on the FoxLoop
+  output rather than the laptop; whether pressure now varies brush width in
+  GIMP needs a person and the staged migration run first.
+- **Mapping alignment was not measured precisely.** The injected touch at 25%
+  across the tablet produced a menu at roughly 21% across the output, which is
+  within menu-placement slop but was not verified against a known coordinate.
+- **The GIMP migration has not been run**, because GIMP was open throughout.
+- **Only KDE/KWin was examined.** Whether GNOME keys tablet mapping the same way
+  is unknown, and Milestone 10's "implemented, not live-tested" still stands.
