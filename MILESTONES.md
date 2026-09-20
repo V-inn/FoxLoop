@@ -3711,3 +3711,100 @@ sessions that checked everything else.
 - **Only KDE/KWin was examined.** Whether GNOME keys tablet mapping the same way
   is unknown, and Milestone 10's "implemented, not live-tested" still stands.
 - **The deb and rpm packages still have not been rebuilt** since the rename.
+
+---
+
+## 32. A phone works, and the hardware list was narrower than the code
+
+The README had said "Supported hardware: Samsung Galaxy Tab S9 FE and newer, S10
+FE and newer" since the beginning. Nobody had ever checked whether that was a
+requirement or just the only thing anyone had plugged in. It was the second one.
+
+A Galaxy A55 5G (`SM-A556E`, Android 16, SDK 36, 1080x2340 at density 450) was
+installed with the same signed release APK the tablet runs, plugged into the same
+port, and it works.
+
+### Why it was always going to work
+
+Nothing in the transport is tablet-shaped or Samsung-shaped, and reading it back
+afterwards this is obvious in a way it was not beforehand:
+
+- **`accessory_filter.xml` matches the host, not the device.** It matches
+  `manufacturer="FoxLoop"` / `model="FoxLoop Virtual Display"`, which are the
+  strings `daemon/src/aoa.rs` sends over `ACCESSORY_SEND_STRING`. Nothing in the
+  match refers to the Android device at all. Any device that can enter accessory
+  mode and has the app installed will be offered the intent.
+- **AOA 2.0 is a stock Android facility**, not a Samsung extension. The daemon
+  logged `found AOA-capable device (protocol v2)` against the phone exactly as it
+  does against the tablet, switched it to accessory mode, and watched it
+  re-enumerate.
+- **`minSdk` is 26 and there is no native code**, so there is no ABI to miss and
+  no API floor a modern phone could fall below.
+- **The phone advertises `android.hardware.usb.accessory`**, which is what the
+  manifest's `uses-feature ... required="true"` gate filters on. That gate would
+  exclude a device that genuinely cannot do this, which is its job.
+
+What a phone does not have is a Wacom EMR digitiser, so there is no pressure, no
+tilt, no hover and no side button. That costs nothing structurally: the virtual
+touchpad is a **separate uinput device** from the virtual tablet (Milestone 23),
+so touch never depended on the pen existing. A phone is a small extended display
+with touchpad-style input, which is a real use and not a degraded one.
+
+### The lockscreen is the whole failure mode, not a nicety
+
+This is the part worth the entry. The daemon connected, switched the phone to
+accessory mode, re-enumerated it, and sat at `waiting for the Android app to open
+the accessory` — over and over, across restarts, with the app installed and
+correct. It looked exactly like a broken app.
+
+    mWakefulness=Dozing
+    lockscreen showing=true
+
+Android will not route `ACTION_USB_ACCESSORY_ATTACHED` to a locked device. That
+was already written down, but as a first-run detail — "unlock the tablet" sits in
+the getting-started steps beside plugging the cable in. On a device you have just
+installed to and are not holding, it is not a detail. It is a silent, repeating,
+self-healing-looking failure with no error anywhere, and the fix is to pick the
+phone up.
+
+`dumpsys power | grep mWakefulness` and `dumpsys window | grep showing=` answer it
+in two seconds and are worth reaching for before suspecting anything else.
+
+### Installing while the daemon is running is a race
+
+A second trap, specific to bringing up a *new* device rather than rebuilding for
+a known one. Installing needs `adb`. The daemon claims any AOA-capable device it
+finds and switches it into accessory mode, and systemd restarts it every few
+seconds, so it re-claims the device continuously. Stop the daemon first:
+
+    systemctl --user stop foxloop-daemon
+
+The restart counter also climbs while this is going on, and three restarts inside
+sixty seconds wedges the unit until `systemctl --user reset-failed`. Worth
+clearing in the same breath.
+
+(`adb` did in fact survive accessory mode on both Samsungs here, which is not
+something to rely on; the contention was the daemon re-grabbing the device, not
+accessory mode itself.)
+
+### Not verified
+
+- **The phone's handshake was never observed.** What this session watched was the
+  AOA negotiation up to `waiting for the Android app to open the accessory`. The
+  connection working after unlock was **reported by the user, not read out of a
+  log**. No `[input] handshake:` line and no `encoder ready` for the phone was
+  seen, so the negotiated geometry for a 1080x2340 panel is unrecorded.
+- **One phone, and it is another Samsung.** Whether a non-Samsung Android device
+  enters accessory mode as cleanly is still unknown. The reasoning above says it
+  should; nothing has demonstrated it.
+- **No latency figure for the phone.** Nothing was measured, and nothing should
+  be assumed from the tablet's numbers, which come from a different panel at a
+  different resolution.
+- **Nothing was checked about orientation on a phone aspect ratio.**
+  `MainActivity` handles orientation itself, and 1080x2340 is far narrower than
+  anything this project has driven. Whether rotation and the desktop-size setting
+  behave sensibly there is untested.
+- **Not tested below SDK 36**, despite `minSdk` being 26. Both devices here run
+  Android 16.
+- **Multi-touch gestures were not exercised on the phone**, only assumed to work
+  from sharing the touchpad path.

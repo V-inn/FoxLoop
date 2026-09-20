@@ -10,8 +10,14 @@ The tablet half lives in [`../android-client`](../android-client/README.md).
 
 ## What you need
 
-- **A supported tablet** — Samsung Galaxy Tab S9 FE or newer, S10 FE or newer;
-  anything with a Wacom EMR S Pen. Plus the pen, plus a USB cable.
+- **An Android device that can act as a USB accessory**, plus a USB cable. Most
+  can; the app's manifest filters on `android.hardware.usb.accessory` so a device
+  that cannot is excluded rather than left to fail.
+
+  For the full thing — pressure, tilt, hover, side button — that device needs a
+  **Wacom EMR S Pen**: Samsung Galaxy Tab S9 FE or newer, S10 FE or newer, which
+  is what this is developed and measured against. Anything else is a display with
+  touch, which works (a Galaxy A55 phone was tried) but is not a drawing tablet.
 - **KDE Plasma or GNOME.** Nothing else is supported: the virtual monitor is made
   through compositor-specific machinery, and there is no portable way to do it.
   GNOME support is written but has never been run against a real GNOME session —

@@ -4,8 +4,13 @@ Linux equivalent of SuperDisplay: use a Samsung Galaxy Tab as an extended deskto
 display over USB, with S Pen input (pressure, tilt, hover, side button) working like a
 normal drawing tablet.
 
-Supported hardware: Samsung Galaxy Tab S9 FE and newer, S10 FE and newer — any tablet
-with a Wacom EMR S Pen.
+Hardware: best on a Samsung Galaxy Tab S9 FE or newer, S10 FE or newer — any tablet
+with a Wacom EMR S Pen, which is the part that carries pressure and tilt, and what
+the project is developed and measured against.
+
+Any Android device that can act as a USB accessory works as a *display*, though: a
+Galaxy A55 phone does. Without an EMR pen you get the screen and touch rather than
+a digitiser. See [Milestone 32](./MILESTONES.md) for what was and was not checked.
 
 ## Demo
 
@@ -19,7 +24,8 @@ Drawing in GIMP with the S Pen — pressure and tilt working live.
 
 ## What it needs to work
 
-- A supported Samsung Galaxy Tab with its S Pen
+- An Android device that can act as a USB accessory — a Galaxy Tab with its S Pen
+  for the full thing, pen included; a phone for a screen you can touch
 - A Linux desktop running KDE Plasma, or GNOME (GNOME support is new and not yet
   tested on real hardware — see [Project status](#project-status))
 - A USB cable between the two
