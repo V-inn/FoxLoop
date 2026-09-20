@@ -53,10 +53,18 @@ android {
         // is the only thing keeping a `v0.2` release from carrying a build that
         // still calls itself 0.1.
         //
-        // Still 1/"0.1": nothing has been published yet. Both move together in
-        // one deliberate commit when it is.
-        versionCode = 1
-        versionName = "0.1"
+        // 2/"0.2.0": the first release to carry the FoxLoop name, a launcher
+        // icon and a project page.
+        //
+        // `versionName` gained a third component here. It had been "0.1" while
+        // the only tag in the repository was `v0.1.0`, which nothing noticed
+        // because nothing had been published through `release-apk.sh` yet --
+        // and that script compares the tag against this string exactly, so the
+        // two spellings had to converge or the first real publish would have
+        // been refused. They converge on the tag's shape, which also matches
+        // the daemon's own 0.2.0 in Cargo.toml.
+        versionCode = 2
+        versionName = "0.2.0"
     }
 
     signingConfigs {
