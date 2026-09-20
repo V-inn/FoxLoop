@@ -94,11 +94,10 @@ sudo dnf install ./foxloop-[0-9]*.rpm ./foxloop-uinput-*.rpm</code></pre>
         <li>
           <h3>Put the app on the tablet</h3>
           <div class="prose">
-            <p>There is no store listing yet, so the app is built from the repository:</p>
-            <pre class="code"><code>cd android-client
-echo "sdk.dir=$HOME/Android/Sdk" &gt; local.properties
-./gradlew assembleDebug
-adb install -r app/build/outputs/apk/debug/app-debug.apk</code></pre>
+            <p>Take <code>foxloop-&lt;version&gt;.apk</code> from the <a href="https://github.com/V-inn/FoxLoop/releases/latest">latest release</a>, the same place the daemon packages come from. Sideload it on the tablet, or push it over the cable:</p>
+            <pre class="code"><code>adb install -r foxloop-*.apk</code></pre>
+            <p>Android will ask you to allow installing from wherever you got it. There is no store listing yet.</p>
+            <p>You can build it yourself instead — <a href="https://github.com/V-inn/FoxLoop/blob/main/android-client/README.md">the client README</a> has the four lines — but a build of your own is signed with your debug key, so it will not install over a copy from the release without uninstalling first, which loses the app's settings.</p>
           </div>
         </li>
 

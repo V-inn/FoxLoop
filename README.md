@@ -101,12 +101,33 @@ Full detail, every option, and a troubleshooting table:
 
 ### 2. The tablet
 
+Take `foxloop-<version>.apk` from the
+[latest release](https://github.com/V-inn/FoxLoop/releases/latest) — the same
+place the daemon packages come from — and install it. Either sideload it on the
+tablet itself, or over a cable:
+
+```sh
+adb install -r foxloop-*.apk
+```
+
+Android will ask you to allow installing from wherever you got it; there is no
+store listing yet.
+
+<details>
+<summary>Or build it yourself</summary>
+
 ```sh
 cd FoxLoop/android-client
 echo "sdk.dir=$HOME/Android/Sdk" > local.properties
 ./gradlew assembleDebug
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
+
+A build of your own is signed with your debug key rather than the release one,
+so it will not install *over* a copy from the release — uninstall first, which
+loses the app's settings.
+
+</details>
 
 More in [`android-client/README.md`](./android-client/README.md).
 
