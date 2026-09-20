@@ -174,7 +174,7 @@ impl UinputTouchpad {
             product: 0x0002,
             version: 1,
         };
-        handle.create(&id, b"Quill Virtual Touchpad", 0, &abs)?;
+        handle.create(&id, b"FoxLoop Virtual Touchpad", 0, &abs)?;
 
         Ok(Self {
             handle,

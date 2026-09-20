@@ -1,8 +1,8 @@
 //! One daemon at a time, enforced with an `flock`ed file.
 //!
 //! Two instances can genuinely happen: the udev rule
-//! (`packaging/99-quill-daemon.rules`) launches the systemd user unit on every
-//! Samsung USB attach, and nothing stops a hand-run `quill-daemon` alongside
+//! (`packaging/99-foxloop-daemon.rules`) launches the systemd user unit on every
+//! Samsung USB attach, and nothing stops a hand-run `foxloop-daemon` alongside
 //! it. When they overlap, three things break in ways that look like unrelated
 //! bugs:
 //!
@@ -29,10 +29,10 @@ use std::path::PathBuf;
 
 fn lock_path() -> PathBuf {
     match std::env::var("XDG_RUNTIME_DIR") {
-        Ok(dir) if !dir.is_empty() => PathBuf::from(dir).join("quill-daemon.lock"),
+        Ok(dir) if !dir.is_empty() => PathBuf::from(dir).join("foxloop-daemon.lock"),
         // No runtime dir (a bare ssh session, say): per-uid so this can't
         // collide with another user's daemon on a shared machine.
-        _ => PathBuf::from(format!("/tmp/quill-daemon-{}.lock", unsafe { libc::getuid() })),
+        _ => PathBuf::from(format!("/tmp/foxloop-daemon-{}.lock", unsafe { libc::getuid() })),
     }
 }
 
@@ -46,7 +46,7 @@ fn lock_path() -> PathBuf {
 /// `O_NOFOLLOW` because of the `/tmp` fallback in `lock_path`: `/tmp` is
 /// world-writable, and its sticky bit only stops others *deleting* entries, not
 /// creating one at a path that doesn't exist yet. Without this, another local
-/// user could pre-place a symlink at `/tmp/quill-daemon-<uid>.lock` pointing at
+/// user could pre-place a symlink at `/tmp/foxloop-daemon-<uid>.lock` pointing at
 /// any file this uid can write, and `acquire_or_exit`'s `set_len(0)` would
 /// truncate the target. 0600 for the same reason -- nobody else needs to read a
 /// pid we only write for diagnostics.
@@ -94,9 +94,9 @@ pub fn acquire_or_exit() {
         let _ = file.read_to_string(&mut holder);
         let holder = holder.trim();
         if holder.is_empty() {
-            eprintln!("[lock] another quill daemon is already running -- exiting");
+            eprintln!("[lock] another foxloop daemon is already running -- exiting");
         } else {
-            eprintln!("[lock] another quill daemon is already running (pid {holder}) -- exiting");
+            eprintln!("[lock] another foxloop daemon is already running (pid {holder}) -- exiting");
         }
         std::process::exit(0);
     }
@@ -120,12 +120,12 @@ mod tests {
     /// than truncate what's on the other end.
     #[test]
     fn refuses_to_follow_a_symlink_and_leaves_the_target_intact() {
-        let dir = std::env::temp_dir().join(format!("quill-lock-test-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("foxloop-lock-test-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
 
         let victim = dir.join("victim");
         std::fs::write(&victim, "precious").unwrap();
-        let lock = dir.join("quill-daemon.lock");
+        let lock = dir.join("foxloop-daemon.lock");
         std::os::unix::fs::symlink(&victim, &lock).unwrap();
 
         let err = open_lock_file(&lock).expect_err("must not follow the symlink");
@@ -140,10 +140,10 @@ mod tests {
     /// The ordinary path still works, and creates the file 0600.
     #[test]
     fn creates_a_private_lock_file_on_the_normal_path() {
-        let dir = std::env::temp_dir().join(format!("quill-lock-ok-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("foxloop-lock-ok-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
 
-        let lock = dir.join("quill-daemon.lock");
+        let lock = dir.join("foxloop-daemon.lock");
         let file = open_lock_file(&lock).expect("plain path must open");
         let mode = file.metadata().unwrap().permissions().mode() & 0o777;
         assert_eq!(mode, 0o600, "lock file should not be readable by others");

@@ -152,8 +152,8 @@ frames can be read from userspace.
   cross-desktop equivalent exists; confirmed the standard
   `org.freedesktop.portal.RemoteDesktop` has no virtual-monitor support at all) that
   never touches DRM/KMS, so the atomic-commit stall class of bug structurally can't
-  happen. `krfb-virtualmonitor --resolution 1920x1080 --name QuillTest` created a
-  real KWin output (`Virtual-QuillTest`, enabled, connected, correct mode, positioned
+  happen. `krfb-virtualmonitor --resolution 1920x1080 --name FoxLoopTest` created a
+  real KWin output (`Virtual-FoxLoopTest`, enabled, connected, correct mode, positioned
   beside the real panel) instantly, no crash. Verified it's genuinely capturable
   through the *standard* portal too: a `spectacle -f` fullscreen screenshot captured
   both the real panel and the virtual monitor's desktop content side by side. Clean
@@ -423,11 +423,11 @@ Root cause: `libinput list-devices` showed the virtual tablet with an unrestrict
 `Calibration: identity matrix` / `Area rectangle: (0,0)-(1,1)` — i.e. its normalized
 0..1 input range was mapped across KWin's *entire combined desktop geometry*
 (`kscreen-doctor -o` confirmed two outputs side by side: `eDP-1` at `0,0 1536x864` and
-`Virtual-QuillTest` at `1536,0 1920x1080`), not just the virtual monitor. **Fix:** KDE's
+`Virtual-FoxLoopTest` at `1536,0 1920x1080`), not just the virtual monitor. **Fix:** KDE's
 own `kcm_tablet` panel (System Settings → Graphics Tablet) lists the device (it shows up
 there because `input_linux`'s uinput device declares itself as a proper tablet — pressure,
 tilt, `BTN_TOOL_PEN`) and offers a per-device screen-mapping dropdown; setting it to
-`Virtual-QuillTest` and applying fixed it immediately, confirmed live by starting the
+`Virtual-FoxLoopTest` and applying fixed it immediately, confirmed live by starting the
 desktop cursor on the main screen and drawing — stroke landed correctly on the virtual
 monitor regardless. No code change needed. Because the uinput device uses a fixed,
 hardcoded `InputId` (`bustype: BUS_VIRTUAL, vendor: 0x1209, product: 0x0001` — see
@@ -635,7 +635,7 @@ the virtual monitor) landed mostly off-screen — XWayland's combined root windo
 turned out to operate in **physical, unscaled pixels**, not KDE's logical/scaled
 coordinate space, so the correct X11 offset was `1920` (eDP-1's physical width), not
 `1536` (its logical width at 1.25x scale). Confirmed by adding a one-shot raw-frame
-dump (`QUILL_DUMP_FRAME=1` env var, writes a `.ppm` converted to `.png` for viewing)
+dump (`FOXLOOP_DUMP_FRAME=1` env var, writes a `.ppm` converted to `.png` for viewing)
 so the actual captured pixels could be inspected directly instead of reasoning about
 coordinate spaces blind — ground truth beat calculation here.
 
@@ -952,7 +952,7 @@ events) carried over a different transport -- `daemon/src/aoa.rs` implements
 
 **AOA handshake implemented generically, not hardcoded to this tablet:** scan every
 USB device for one that answers the standard `ACCESSORY_GET_PROTOCOL` vendor
-request, send the six identification strings (`Quill`/`Quill Virtual Display`/...),
+request, send the six identification strings (`FoxLoop`/`FoxLoop Virtual Display`/...),
 send `ACCESSORY_START`, then find and open the device again after it disconnects and
 re-enumerates under Google's AOA VID/PID (`18d1:2d00`/`2d01`) -- matches the
 project's no-hardcoding rule, any AOA-capable Android device should work here
@@ -1063,7 +1063,7 @@ which had two real blockers:
    anything unattended. `ashpd` (the portal crate already in use) supports
    `PersistMode::ExplicitlyRevoked` plus a restore token: `open_portal()`
    (`portal_capture.rs`) now saves the token xdg-desktop-portal returns after the
-   first successful pick to `~/.config/quill/portal_restore_token`, and passes it
+   first successful pick to `~/.config/foxloop/portal_restore_token`, and passes it
    back in on every subsequent call. Confirmed live: first run still shows the
    picker and writes the token file; every run after that goes straight to
    `[portal] got stream: ...` with no dialog at all. Falls back to a fresh
@@ -1071,13 +1071,13 @@ which had two real blockers:
    recreated, etc.) rather than failing outright.
 
 2. **Nothing was launching the daemon.** Added a udev rule
-   (`daemon/packaging/99-quill-daemon.rules`) matching Samsung's USB vendor ID
+   (`daemon/packaging/99-foxloop-daemon.rules`) matching Samsung's USB vendor ID
    (`04e8`, generic across Samsung Android devices in normal MTP mode -- not
    hardcoded to this one tablet, matches the project's no-hardcoding rule) that
-   tags `SYSTEMD_USER_WANTS+="quill-daemon.service"` -- the standard mechanism for
+   tags `SYSTEMD_USER_WANTS+="foxloop-daemon.service"` -- the standard mechanism for
    reaching a logged-in user's systemd session from udev's root context, rather
    than a fragile `su`/`DISPLAY`-guessing script. The user unit
-   (`daemon/packaging/quill-daemon.service`) runs the daemon in AOA mode with
+   (`daemon/packaging/foxloop-daemon.service`) runs the daemon in AOA mode with
    `Restart=on-failure`, capped via `StartLimitBurst` so a persistent failure
    doesn't spin-restart forever.
 
@@ -1085,7 +1085,7 @@ which had two real blockers:
    directly in the unit's `ExecStart` -- caught before merging: that only works on
    this machine, this exact clone location, not portable to anyone else picking up
    the project. Fixed with `daemon/packaging/install.sh`, which symlinks the built
-   release binary to the checkout-independent `~/.local/bin/quill-daemon` and
+   release binary to the checkout-independent `~/.local/bin/foxloop-daemon` and
    points the unit there instead -- works regardless of where the repo lives.
 
 **Confirmed live end to end:** tablet unplugged and replugged, with nothing
@@ -1155,7 +1155,7 @@ the auto-launched daemon "running" but functionally dead -- the AOA handshake re
 failed, `setup_transport` logged the failure and returned `None` for the transport,
 and the daemon just carried on capturing forever with no client and no way to
 reconnect. Since the process never exited, `systemd`'s `Restart=on-failure` (see
-`packaging/quill-daemon.service`) never got a chance to fire, and the udev rule's
+`packaging/foxloop-daemon.service`) never got a chance to fire, and the udev rule's
 `SYSTEMD_USER_WANTS` on the tablet reappearing was a no-op against an
 already-"active" unit. Only a manual `systemctl --user restart` recovered it.
 
@@ -1255,24 +1255,24 @@ cost this project a milestone:
 
 | File | What it does |
 | --- | --- |
-| `desktop.rs` | `Backend::{Kde, Gnome}` detection (`QUILL_BACKEND` override, then `XDG_CURRENT_DESKTOP`, then a session-bus name probe for the udev-launch case where the unit inherits no session environment), plus the one helper for running a D-Bus call from a synchronous caller. |
+| `desktop.rs` | `Backend::{Kde, Gnome}` detection (`FOXLOOP_BACKEND` override, then `XDG_CURRENT_DESKTOP`, then a session-bus name probe for the udev-launch case where the unit inherits no session environment), plus the one helper for running a D-Bus call from a synchronous caller. |
 | `gnome_screencast.rs` | The `CreateSession` / `RecordVirtual` / `Start` / `PipeWireStreamAdded` sequence. Holds the session on a thread of its own with its own runtime -- mutter ties the session's life to the D-Bus sender, and `run_capture` stops driving the main runtime the moment it's called. |
 | `gnome_display.rs` | `kscreen-doctor -j`'s replacement: `org.gnome.Mutter.DisplayConfig.GetCurrentState`, decoded into the same `DesktopLayout` the pointer warping already consumes. |
 | `orientation.rs` | Now dispatches `ensure`/`layout` on the backend; everything below the dispatchers is unchanged KDE code. |
 | `portal_capture.rs` | `run_capture` takes `fd: Option<OwnedFd>` (mutter publishes on the user's own PipeWire daemon, so there is no portal remote to connect through) and a preferred size. |
-| `packaging/60-quill-uinput.rules` | The one privileged step, isolated: `TAG+="uaccess"` on `/dev/uinput`. |
+| `packaging/60-foxloop-uinput.rules` | The one privileged step, isolated: `TAG+="uaccess"` on `/dev/uinput`. |
 
 The `70` in that filename is not cosmetic. `TAG+="uaccess"` does nothing on its own --
 the tag is *consumed* by systemd's `/usr/lib/udev/rules.d/73-seat-late.rules`
 (`TAG=="uaccess", ENV{MAJOR}!="", RUN{builtin}+="uaccess"`), and udev runs rules in
 lexical filename order, so a rule numbered above 73 sets the tag after the only thing
-that reads it has already run. Written first as `99-quill-uinput.rules`, which would
+that reads it has already run. Written first as `99-foxloop-uinput.rules`, which would
 have been silently inert: no error, no ACL, just a daemon that still can't open
 `/dev/uinput`. Caught in review before it shipped. Every uaccess-setting rule on a
 typical system sits below 73 (`51-android`, `60-steam-input`, systemd's own
 `70-uaccess`).
 
-`99-quill-daemon.rules` is a different mechanism and 99 is correct there: it sets
+`99-foxloop-daemon.rules` is a different mechanism and 99 is correct there: it sets
 `TAG+="systemd"` + `ENV{SYSTEMD_USER_WANTS}`, which systemd-udevd reads after all rule
 processing ends rather than from another rule file.
 
@@ -1302,7 +1302,7 @@ This machine is Plasma-only, so none of the D-Bus path above has touched a real 
 session. What *is* verified here:
 
 - The full setup path runs end to end and fails where it should
-  (`QUILL_BACKEND=gnome` on this KDE box: thread, runtime, connection, proxy and error
+  (`FOXLOOP_BACKEND=gnome` on this KDE box: thread, runtime, connection, proxy and error
   propagation all execute, ending at `CreateSession failed:
   org.freedesktop.DBus.Error.ServiceUnknown`).
 - The KDE path is unchanged and still takes the portal branch.
@@ -1330,7 +1330,7 @@ defensive, because the first real GNOME run is going to be someone else's.
   ScreenCast session via `CreateSession`'s `remote-desktop-session-id` property. That
   is a real option and a separate piece of work.
 - **Scale.** Mutter picks the virtual monitor's scale itself (it has no physical size
-  to go on). `QUILL_GNOME_SCALE` sets `preferred-scale` for the case where it guesses
+  to go on). `FOXLOOP_GNOME_SCALE` sets `preferred-scale` for the case where it guesses
   badly on a particular tablet; unset by default, so as not to override the user's own
   display settings from a daemon.
 - **Does it extend or mirror?** The pre-existing KDE gripe (Milestone 13) about the
@@ -1400,19 +1400,19 @@ session -- a real scoping decision given the size of the fix already shipped, no
 oversight.
 
 ## 12. Investigated: double-cursor "ghosting" on stop-motion -- likely a hardware
-## panel characteristic, not a Quill bug
+## panel characteristic, not a FoxLoop bug
 
 User reported: after a drag/motion stops, the tablet briefly (and sometimes
 persistently, in a still screenshot) shows two crisp, non-blurred cursor icons
 side by side, offset by a small amount -- not a blur/smear, two distinct copies of
 the same icon. Confirmed live via real tablet screenshots (not a hypothetical).
 
-**Methodically eliminated every stage of the pipeline Quill actually controls,**
+**Methodically eliminated every stage of the pipeline FoxLoop actually controls,**
 each with direct evidence, not inference:
 
 - **Raw captured frame (KWin's own compositor output, before any encoding):**
   dumped directly via a temporary continuous-frame-dump diagnostic
-  (`portal_capture.rs`'s existing one-shot `QUILL_DUMP_FRAME` debug path, briefly
+  (`portal_capture.rs`'s existing one-shot `FOXLOOP_DUMP_FRAME` debug path, briefly
   modified to dump every frame instead of just the first -- reverted after use, not
   kept). Clean, single cursor, for a real reproducing motion+stop test.
 - **Our own encoded H.264 bitstream** (VAAPI + VPP color conversion, the daemon's own
@@ -1452,7 +1452,7 @@ tablet's panel EDID reports a 2020 manufacture date, plausibly not tuned for fas
 motion clarity), consistent with every observation including "worse at higher
 frame rates" (faster real content changes stress panel response time harder) and
 "still present, just smaller, when the pipeline was artificially throttled to
-~1fps" (still some transition, just less frequent). Not something Quill's software
+~1fps" (still some transition, just less frequent). Not something FoxLoop's software
 can fix if correct -- analogous to noticing a monitor's own motion blur. The one
 untested remaining variable is bit-level AOA transport corruption, considered
 unlikely given the artifact's clean, correctly-shaped appearance (typical transport
@@ -1489,7 +1489,7 @@ separate, pre-existing issue unrelated to virtual-monitor sizing. Not
 investigated further this session.
 
 **Worth keeping despite the revert: a real, still-unfixed bug was found
-during that work.** Manually running `quill` while the systemd auto-launch
+during that work.** Manually running `foxloop` while the systemd auto-launch
 instance already owned the tablet raced `aoa::connect`'s "already in
 accessory mode, reusing it" fast path against a connection with leftover
 bytes still in flight -- the fresh handshake read landed on stale stream
@@ -1510,7 +1510,7 @@ read in `input_receiver.rs` regardless of whatever uses width/height next.
 ## 14. Real FPS root cause: hardcoded software decoder starving at native resolution
 
 Milestone 13's revert fixed the daemon side, but re-testing against the real
-`Virtual-QuillDisplay` output (not the `eDP-1` mirroring fallback) was still
+`Virtual-FoxLoopDisplay` output (not the `eDP-1` mirroring fallback) was still
 laggy -- same reverted commit, same binary, only the capture source changed,
 which ruled out both the daemon's encode pipeline (measured clean, ~6-10ms/frame,
 `0 stale dropped`) and AOA/USB bandwidth (frame size ~28KB regardless of
@@ -1606,7 +1606,7 @@ recreate's worst case.
 **180-degree flip for this machine's cable position: KWin rotation is a
 dead end for this output type, full stop.** Live-tested directly (not just
 via this daemon's own automation, but manually through System Settings'
-Display and Monitor panel too): setting `Virtual-QuillDisplay`'s rotation
+Display and Monitor panel too): setting `Virtual-FoxLoopDisplay`'s rotation
 to `inverted` or `none` changed `kscreen-doctor -j`'s reported metadata but
 had *zero* effect on what actually got captured -- confirmed by testing
 both settings back to back with no visible difference either time. Real
@@ -1645,7 +1645,7 @@ resent every single frame, since every frame used to be an IDR.
 no lib target (only bin crates), so drove `VaapiEncoder` directly from a throwaway
 `src/bin/gop_bitstream_test.rs` diagnostic (same `#[path = "../..."]` pattern as
 `uinput_test.rs`) with synthetic moving-content BGRX frames -- avoided both the
-interactive portal picker and the already-running production `quill-daemon` systemd
+interactive portal picker and the already-running production `foxloop-daemon` systemd
 service entirely. **Result, 150 synthetic frames:** IDR avg 7168 bytes vs P avg 723
 bytes (~10x smaller), GOP boundary landed exactly at frame 60/120 as designed,
 **88.1% total bitstream reduction** vs a hypothetical all-intra encode of the same
@@ -1655,7 +1655,7 @@ just VAAPI-accepted them. Deleted the diagnostic bin afterward (throwaway, not a
 milestone artifact).
 
 **Live test: the already-running production daemon picked up the new binary for
-free.** `~/.local/bin/quill-daemon` symlinks straight to the release build; the
+free.** `~/.local/bin/foxloop-daemon` symlinks straight to the release build; the
 systemd service was already crash-looping on `[clock-sync] never received clock
 ping` (waiting for the Android app to reopen the accessory), so the next normal
 app-open picked up the rebuilt GOP binary with zero manual restart needed. Confirmed
@@ -1670,7 +1670,7 @@ by-eye impressions of this pipeline aren't reliable without instrumentation.
 
 **Camera glass-to-glass re-measurement, same readable-clock method as Milestone 7**
 (`experiments/capture-latency-probe/src/bin/readable_clock.rs`: one window on the
-real screen, one moved onto `Virtual-QuillDisplay` via `xdotool windowmove` at
+real screen, one moved onto `Virtual-FoxLoopDisplay` via `xdotool windowmove` at
 physical offset `1920,0` -- exact recipe already worked out in Milestone 7's
 barcode-probe section, still correct). Three readings: .723/.589 (134ms),
 .421/.287 (134ms), .488/.388 (100ms) -- **avg ~123ms**.
@@ -1694,9 +1694,9 @@ planned as the next test.
 
 Built the clean comparison right away rather than leaving it planned: `856cffb`
 (pre-GOP) checked out into a throwaway `git worktree`, built release there too, both
-binaries (`quill-daemon-pregop-856cffb`, `quill-daemon-gop`) copied out to
-`~/quill-ab-test/` so the worktree itself could be torn down immediately. Stopped the
-systemd-managed production daemon (`systemctl --user stop quill-daemon.service`,
+binaries (`foxloop-daemon-pregop-856cffb`, `foxloop-daemon-gop`) copied out to
+`~/foxloop-ab-test/` so the worktree itself could be torn down immediately. Stopped the
+systemd-managed production daemon (`systemctl --user stop foxloop-daemon.service`,
 frees the AOA USB handle -- only one process can hold it), ran each binary manually
 against the real tablet with identical args (`aoa` transport, same two
 `readable_clock` windows already positioned from the earlier test), filmed both back
@@ -1847,7 +1847,7 @@ normally.
 
 **The predicted win did not materialize where predicted.** The going-in
 hypothesis was that the 16.4MB memcpy into a write-combined VAAPI mapping
-dominated the 12.66ms. A controlled A/B -- `QUILL_FORCE_SHM=1` versus default,
+dominated the 12.66ms. A controlled A/B -- `FOXLOOP_FORCE_SHM=1` versus default,
 same 30-second window, same on-screen motion probe, back to back -- says
 otherwise: **shm 11.72ms vs DMA-BUF 10.92ms, with an identical 1350 frames
 delivered either way.** The copy was ~0.8ms. That segment is dominated by GPU
@@ -1856,12 +1856,12 @@ work (VPP colour conversion plus H.264 encode over 4.1M pixels), not by the copy
 **And the half that should matter most is still unmeasured.** Removing KWin's
 readback from the ~28-30ms capture segment was always the bigger prize, and it
 could not be confirmed: the barcode probe decodes the CPU mapping that the
-zero-copy path deliberately no longer has. A `QUILL_BARCODE_PROBE` escape hatch
+zero-copy path deliberately no longer has. A `FOXLOOP_BARCODE_PROBE` escape hatch
 is in (`with_mapped_dmabuf`, maps the imported surface for the diagnostic only,
 off by default since mapping a GPU surface forces exactly the sync this path
 exists to avoid), but the probe window currently renders clipped to ~100px of its
 480px barcode on this display layout, so it decodes nothing. Confirmed by dumping
-a raw frame with `QUILL_DUMP_FRAME` and looking at the pixels -- the run lengths
+a raw frame with `FOXLOOP_DUMP_FRAME` and looking at the pixels -- the run lengths
 are clean multiples of 10, so it isn't a scaling problem, the window is just
 mostly not there. Re-calibrating it is the next step; Milestone 7 called this
 positioning "its own detour" and it still is.
@@ -1925,11 +1925,11 @@ codec never reallocates an input buffer mid-stream.
 
 ### Also: the per-frame disk write is now opt-in
 
-`portal_capture.rs` wrote every encoded frame to `~/.local/share/quill/output.h264`
+`portal_capture.rs` wrote every encoded frame to `~/.local/share/foxloop/output.h264`
 with an unbuffered `write()` syscall in the middle of the hot path, into a file
 that grew without bound (~50MB after one session) and that nothing reads unless
-someone is debugging the bitstream. Now behind `QUILL_DUMP_H264`, matching the
-existing `QUILL_DUMP_FRAME` convention.
+someone is debugging the bitstream. Now behind `FOXLOOP_DUMP_H264`, matching the
+existing `FOXLOOP_DUMP_FRAME` convention.
 
 ### Not done yet, in priority order
 
@@ -1967,13 +1967,13 @@ width". That is no longer right and the explanation was never quite the reason.
 
 ```
  0: +*eDP-1 2304/344x1296/194+0+305  eDP-1
- 1: +Virtual-QuillDisplay 2560/2560x1600/1600+2304+0  Virtual-QuillDisplay
+ 1: +Virtual-FoxLoopDisplay 2560/2560x1600/1600+2304+0  Virtual-FoxLoopDisplay
 ```
 
 XWayland renders its root in units of the *largest* output scale (1.5 here), so
 eDP-1's 1536x864 logical becomes 2304x1296 and the virtual output starts at
 **2304**, not 1920. At 1920 the probe landed on eDP-1 and the daemon decoded
-nothing -- confirmed by scanning a `QUILL_DUMP_FRAME` dump for any barcode-like
+nothing -- confirmed by scanning a `FOXLOOP_DUMP_FRAME` dump for any barcode-like
 run pattern anywhere in the frame and finding none. Don't hardcode this
 again: read the offset out of `xrandr --listmonitors`.
 
@@ -1999,7 +1999,7 @@ zero-copy work paid off mostly as ~0.8ms of encode-side copy plus this ~2.6ms,
 not as the structural win it was scoped as.
 
 **Killed: "our callback hold is what caps us at 45fps".** Added
-`QUILL_NO_ENCODE`, which drops the PipeWire buffer immediately instead of
+`FOXLOOP_NO_ENCODE`, which drops the PipeWire buffer immediately instead of
 holding it across encode -- KWin's `record()` returns with no retry scheduled
 when its 2-4 buffer pool is exhausted, so a long hold silently costs frames, and
 that was a plausible source-grounded explanation. Measured: **45.0fps normal,
@@ -2014,7 +2014,7 @@ without encoding any killed the summary right after printing the frame count.
 Guarded.)
 
 **Killed: raising the virtual output above 60Hz via kscreen-doctor, on this
-system.** `kscreen-doctor output.Virtual-QuillDisplay.mode.2560x1600@120` returns
+system.** `kscreen-doctor output.Virtual-FoxLoopDisplay.mode.2560x1600@120` returns
 "Output mode 2560x1600@120 not found", and this build has no `addCustomMode`
 verb at all ("Unable to parse arguments"). KWin does advertise
 `Capability::CustomModes` on virtual outputs and re-derives
@@ -2084,7 +2084,7 @@ without one eventually found a gap.
 The two-EnumFormat-pod DMA-BUF negotiation makes `param_changed` fire **twice**
 (modifier negotiation is inherently two-step: offer a DONT_FIXATE choice, the
 producer picks and sends the fixated format back). Counting the events makes it
-plain: 1 with `QUILL_FORCE_SHM`, 2 without. The handler announced the video
+plain: 1 with `FOXLOOP_FORCE_SHM`, 2 without. The handler announced the video
 format on each firing, so a second 8-byte header landed in a stream the client
 was already reading as length-prefixed frames.
 
@@ -2176,7 +2176,7 @@ before". Exactly one stale pointer, not an accumulating trail -- which pointed a
 the video containing one rather than at an overlay bug.
 
 Confirmed from the pixels, not inferred. Recorded 900 frames in metadata mode
-with `QUILL_DUMP_H264`, extracted the frames at two different logged cursor
+with `FOXLOOP_DUMP_H264`, extracted the frames at two different logged cursor
 positions, and found the pointer bitmap present at both, tracking the metadata.
 (The scene was GIMP, which draws its own crosshair, so a single frame would have
 been ambiguous -- two frames at two positions were not.)
@@ -2242,7 +2242,7 @@ trust.
 
 Ran the readable-clock camera test (Milestone 7's method, unchanged): two
 `readable_clock` instances, one on `eDP-1` at X11 `500,500`, one on
-`Virtual-QuillDisplay` at `2304,0`-ish, filmed together in slow motion, reading
+`Virtual-FoxLoopDisplay` at `2304,0`-ish, filmed together in slow motion, reading
 both values off the same frame.
 
 **Four readings (main screen vs tablet):** .542/.491 (51ms), .593/.541 (52ms),
@@ -2306,9 +2306,9 @@ it.
 Moved with `git mv` so the history follows:
 
 - `experiments/android-decode-test/` -> `android-client/`
-- package `com.quill.decodetest` -> `com.quill.client`
-- app label "Quill Decode Test" -> "Quill", log tag `QuillDecodeTest` -> `Quill`
-- gradle root project `android-decode-test` -> `quill-client`
+- package `io.github.v_inn.foxloop.decodetest` -> `io.github.v_inn.foxloop`
+- app label "FoxLoop Decode Test" -> "FoxLoop", log tag `FoxLoopDecodeTest` -> `FoxLoop`
+- gradle root project `android-decode-test` -> `foxloop-client`
 - pruned the now-dead `experiments/android-decode-test/*` ignore rules; the
   `android-client/*` ones were already there
 
@@ -2330,7 +2330,7 @@ claim work happened somewhere it didn't.
 ### The applicationId change costs a permission re-grant, and that is worth noting
 
 Changing `applicationId` makes Android treat this as a different app, so the USB
-accessory permission granted to `com.quill.decodetest` did not carry over. The
+accessory permission granted to `io.github.v_inn.foxloop.decodetest` did not carry over. The
 new package fell straight through to its adb-forward fallback, logging
 `accessory attached but no permission -- falling back to adb-forward` while the
 daemon sat waiting on AOA. No fresh `USB_ACCESSORY_ATTACHED` intent existed to
@@ -2369,7 +2369,7 @@ Verified end to end after the move: **avg 26ms, min 9ms, `pending=0`**, encode
 ## desync gap made recoverable
 
 Two pieces of work, validated live on 2026-08-15 against the Tab S9 FE+ over
-AOA (Plasma 6.3.6, `Virtual-QuillDisplay` 2560x1600). Results at the end,
+AOA (Plasma 6.3.6, `Virtual-FoxLoopDisplay` 2560x1600). Results at the end,
 including one real bug the testing turned up and the isolated USB-reset answer
 Milestone 21 was waiting for.
 
@@ -2437,7 +2437,7 @@ misaligned, until something else cycles the connection.
   may not be there), `orientation::ensure`'s `pkill -f krfb-virtualmonitor` is
   process-wide and tears down the *other* instance's monitor, and the AOA
   interface claim is exclusive. `flock` on
-  `$XDG_RUNTIME_DIR/quill-daemon.lock`, taken before any side effect. `flock`
+  `$XDG_RUNTIME_DIR/foxloop-daemon.lock`, taken before any side effect. `flock`
   rather than a pid file specifically because the kernel drops it however the
   process exits -- including through the `exit(1)` paths, which skip
   destructors -- so a stale lock file is never stale. A duplicate launch exits
@@ -2455,7 +2455,7 @@ misaligned, until something else cycles the connection.
   returns no token at all.
 - **USB reset, still an experiment** (`aoa.rs`). Milestone 21's `USBDEVFS_RESET`
   result is confounded (the cable was replugged at the same moment), so this is
-  behind `QUILL_USB_RESET=1` rather than on: one `handle.reset()` per process
+  behind `FOXLOOP_USB_RESET=1` rather than on: one `handle.reset()` per process
   before the interface claim, then let `connect`'s existing scan loop wait out
   the re-enumeration. The question it exists to answer is whether a host-side
   reset alone makes Android re-fire `USB_ACCESSORY_ATTACHED` -- i.e. whether
@@ -2469,7 +2469,7 @@ time -- not a stress-only artifact, reproduced with a single
 `systemctl --user restart`. The app logged
 
 ```
-17:02:32.679 W Quill: no data for 15000ms, forcing reconnect
+17:02:32.679 W FoxLoop: no data for 15000ms, forcing reconnect
 ```
 
 and then **nothing further, ever**. The decode thread never returned, so the
@@ -2492,10 +2492,10 @@ Fixed by handing `BufferedAccessoryInput` the `ParcelFileDescriptor` and closing
 that too. Immediately after:
 
 ```
-17:04:18.307 W Quill: no data for 15000ms, forcing reconnect
-17:04:18.309 I Quill: stream ended: read interrupted by close() on another thread
-17:04:20.352 I Quill: connection ended, retrying in 1s...
-17:04:21.372 I Quill: clock-sync: offset=599ms (android-daemon), round-trip sum=1ms
+17:04:18.307 W FoxLoop: no data for 15000ms, forcing reconnect
+17:04:18.309 I FoxLoop: stream ended: read interrupted by close() on another thread
+17:04:20.352 I FoxLoop: connection ended, retrying in 1s...
+17:04:21.372 I FoxLoop: clock-sync: offset=599ms (android-daemon), round-trip sum=1ms
 ```
 
 Two milliseconds from close to unblocked, full reconnect in the same process,
@@ -2523,7 +2523,7 @@ every time with no corruption.
 - **Single-instance lock, proved in the wild rather than in a contrived test.**
   During the USB-reset run below, re-enumeration made the udev rule fire the
   systemd unit while a hand-run daemon was already streaming:
-  `[lock] another quill daemon is already running (pid 178401) -- exiting`, exit
+  `[lock] another foxloop daemon is already running (pid 178401) -- exiting`, exit
   0, first instance untouched. That is precisely the token/interface/`pkill
   krfb-virtualmonitor` race the lock exists for, and it happens on ordinary
   hardware events, not just when someone runs two daemons on purpose.
@@ -2539,7 +2539,7 @@ accessory mode, and **nobody touching the cable** -- the confound that
 invalidated Milestone 21's attempt.
 
 ```
-[aoa] QUILL_USB_RESET: resetting bus 3 addr 12 and waiting for it to re-enumerate...
+[aoa] FOXLOOP_USB_RESET: resetting bus 3 addr 12 and waiting for it to re-enumerate...
 [aoa] reset failed (Entity not found) -- carrying on without it
 [aoa] found AOA-capable device (protocol v2) at bus 3 addr 13, switching to accessory mode...
 [aoa] connected: bus 3 addr 14, interface 0, bulk in=0x81 out=0x01
@@ -2560,7 +2560,7 @@ granted, no dialog), the app opened the accessory and handshook cleanly
 **So the answer Milestone 21 wanted is yes: a host-side reset alone recovers a
 stuck accessory session, with no physical replug and nobody at the machine.**
 
-Left behind `QUILL_USB_RESET` rather than making it automatic, deliberately.
+Left behind `FOXLOOP_USB_RESET` rather than making it automatic, deliberately.
 One clean run is enough to answer the question and not enough to make it the
 default: an unconditional reset would tear down a *healthy* accessory session
 on every daemon start and cost an app relaunch (~5s) each time. The case that
@@ -2666,7 +2666,7 @@ by which time the output is up.
 ### Verification
 
 Device classification first, since that decides whether any of it works:
-`libinput list-devices` reports `Quill Virtual Touchpad` with
+`libinput list-devices` reports `FoxLoop Virtual Touchpad` with
 **`Capabilities: pointer gesture`** and `Size: 256x160mm`, alongside the
 unchanged tablet (`cap:T`). Milestone 6b's failure did not recur.
 
@@ -2732,7 +2732,7 @@ Verified with a synthetic client sending `config_flags = 4`: a touch at
 
 ## 25. Install instructions, and the kernel module nobody needed
 
-The repo had no install instructions at all. The root README said what Quill is
+The repo had no install instructions at all. The root README said what FoxLoop is
 and what it needs; `daemon/README.md` was one line ("Work begins in Milestone 2").
 The only build command written down anywhere was the Android one. The path from
 "found this on GitHub" to "it works" existed solely in the author's head.
@@ -2747,17 +2747,17 @@ included `<evdi_lib.h>`, left over from Milestone 2's evdi-to-portal pivot.
 nothing outside that orphaned file referenced a single evdi symbol -- but bindgen
 still needed the header and the linker still wanted the library.
 
-So building Quill required `libevdi-dev` **and the evdi DKMS kernel module** --
+So building FoxLoop required `libevdi-dev` **and the evdi DKMS kernel module** --
 the exact thing Milestone 2 abandoned for freezing this machine under both
 Wayland and X11. The honest first line of the install guide would have read
 "install a kernel module we dropped for hanging your desktop."
 
 It went unnoticed for the obvious reason: this development machine still has
 `evdi-dkms`, `libevdi-dev` and `libevdi1` installed from that experiment. Nobody
-had ever built Quill anywhere else.
+had ever built FoxLoop anywhere else.
 
 Removed: the link directive, the three `evdi_.*` bindgen allowlists, the header
-include, and `evdi_capture.rs` itself. `ldd target/release/quill-daemon` no
+include, and `evdi_capture.rs` itself. `ldd target/release/foxloop-daemon` no
 longer mentions evdi and the 33 tests still pass.
 
 ### The dependency list was verified, not guessed
@@ -2778,12 +2778,12 @@ in the multi-gigabyte `target/` directory. Copy the sources only.
 the `vainfo` check for VAAPI H.264 encode support (hardware-only, no software
 fallback -- worth stating before someone builds the whole thing to find out),
 per-distro dependency lines, build, `install.sh`, what each of the two udev rules
-is for, first-run behaviour on KDE versus GNOME, every `QUILL_*` environment
+is for, first-run behaviour on KDE versus GNOME, every `FOXLOOP_*` environment
 variable, and a troubleshooting table keyed on the daemon's own log tags.
 
 The root README gained a short three-step Getting started that hands off to it.
 
-Two things the guide deliberately does not do: promise Quill works outside
+Two things the guide deliberately does not do: promise FoxLoop works outside
 KDE/GNOME, or imply the GNOME path has been tested. It has not.
 
 ## 26. The settings screen, rebuilt — and 90/270 rotation
@@ -2801,7 +2801,7 @@ Surveying it turned up four defects nobody had reported:
 - `PAD = 48` was used as a **raw pixel count**, so every gap rendered at less
   than half the size the number suggests.
 - The activity overrode the app theme with `Theme.Black`, which *has* a title
-  bar, while also carrying `android:label="Quill settings"` -- so that string
+  bar, while also carrying `android:label="FoxLoop settings"` -- so that string
   drew twice.
 - `Settings.showLatencyOverlay` was **write-only dead state**. The only code
   that read it was the switch that set it. The control did nothing, and had done
@@ -2972,7 +2972,7 @@ to the app, present after the first frame and absent before it.
 
 ## 27. Packaging the daemon: two packages, and where the grant goes
 
-`PUBLISHING-TODO.md` opens with the thing that is not a checkbox: Quill is the
+`PUBLISHING-TODO.md` opens with the thing that is not a checkbox: FoxLoop is the
 client half of a two-part system, and the Play Store only distributes the half
 that does nothing on its own. Someone who installs the APK gets "Waiting for
 connection…" forever unless they can compile a Rust daemon on Linux, with KDE or
@@ -2989,10 +2989,10 @@ Two packages on each format, not one:
 
 | | |
 | --- | --- |
-| `quill` | the binary, the wrapper, the systemd user unit, `99-quill-daemon.rules`. Nothing with a privilege implication. |
-| `quill-uinput` | `60-quill-uinput.rules`, alone. |
+| `foxloop` | the binary, the wrapper, the systemd user unit, `99-foxloop-daemon.rules`. Nothing with a privilege implication. |
+| `foxloop-uinput` | `60-foxloop-uinput.rules`, alone. |
 
-The requirement that produced this was the user's: Quill should be safe to
+The requirement that produced this was the user's: FoxLoop should be safe to
 deploy in school and corporate environments with many users per machine, where
 IT is reasonably wary of `/dev/uinput` access for people who are not sitting at
 the computer.
@@ -3008,20 +3008,20 @@ Steam's `60-steam-input.rules`, and the alternatives it was chosen over —
 What is left is small but real: anyone who sits down and logs in gets
 `/dev/uinput` while active. They already have a physical keyboard, so the
 marginal capability is limited — but it is not nothing, and it should not arrive
-silently with `apt install quill`.
+silently with `apt install foxloop`.
 
 The first design here made it `Suggests:`, so a default install would not pull
 it. The user rejected that, correctly: for the ordinary single-seat desktop the
 rule *is* the working product — without it the daemon falls back to the
 `RemoteDesktop` portal, which carries **no pressure and no tilt**, which is most
-of what Quill is for. It is now `Recommends:`, installed by default on both apt
+of what FoxLoop is for. It is now `Recommends:`, installed by default on both apt
 and dnf.
 
 Keeping it a separate *package* is what still serves the multi-user case: the
 grant is one named, auditable unit that an administrator can decline with
-`apt install --no-install-recommends quill`, leave out of a lab image, or
-`apt remove quill-uinput` later without touching the daemon. A file buried
-inside `quill` would have offered none of those. `daemon/README.md` has a
+`apt install --no-install-recommends foxloop`, leave out of a lab image, or
+`apt remove foxloop-uinput` later without touching the daemon. A file buried
+inside `foxloop` would have offered none of those. `daemon/README.md` has a
 "Multi-user and managed machines" section stating the tradeoff plainly, so
 nobody has to read udev rules to evaluate it.
 
@@ -3033,7 +3033,7 @@ those the fallback has no input at all rather than input without pressure.
 ### The bug the packaging found
 
 The unit has `ProtectSystem=strict` with
-`ReadWritePaths=%h/.local/share/quill %h/.config/quill`, and `install.sh:19` is
+`ReadWritePaths=%h/.local/share/foxloop %h/.config/foxloop`, and `install.sh:19` is
 what creates those two directories. A package cannot: it runs once, as root, and
 has no business walking every user's home.
 
@@ -3041,13 +3041,13 @@ Left alone, a packaged install would have failed for everyone who had never run
 `install.sh` — which is everyone the packages exist for. The failure names
 neither the directory nor the setting:
 
-    Failed at step NAMESPACE spawning /usr/bin/quill-daemon: No such file or
+    Failed at step NAMESPACE spawning /usr/bin/foxloop-daemon: No such file or
     directory
     Main process exited, code=exited, status=226/NAMESPACE
 
 "No such file or directory" reads like a missing binary. It is not.
 
-Fixed with `ExecStartPre=+/usr/bin/mkdir -p %h/.local/share/quill %h/.config/quill`.
+Fixed with `ExecStartPre=+/usr/bin/mkdir -p %h/.local/share/foxloop %h/.config/foxloop`.
 The `+` matters: it exempts that one command from the sandbox, because by the
 time the namespace exists `ProtectSystem=strict` has made the hierarchy
 read-only, and the namespace is exactly what fails when the directories are
@@ -3073,29 +3073,29 @@ chain needs 1.87+, the same constraint Milestone 2 hit.
 ### Two things cargo-deb cannot express
 
 - **Per-variant synopsis.** The one-line `Description:` comes from
-  `package.description` for every package cargo-deb builds, so `quill-uinput`
+  `package.description` for every package cargo-deb builds, so `foxloop-uinput`
   advertised itself as a drawing display. There is no metadata field for it;
   `build-in-container.sh` unpacks the built deb, rewrites the line, repacks, and
   fails loudly if the rewrite matched nothing.
 - **`Architecture: all`.** Also unavailable — but correct here anyway, since
-  `quill` is amd64-only and both would be built per-architecture together.
+  `foxloop` is amd64-only and both would be built per-architecture together.
 
 ### Verified
 
 Built and installed in fresh containers, four combinations, all passing:
 
 - `debian:12` and `debian:13`, both packages: all five files land, the unit's
-  `ExecStart` points at `/usr/bin/quill-daemon` while `ReadWritePaths` and the
+  `ExecStart` points at `/usr/bin/foxloop-daemon` while `ReadWritePaths` and the
   data paths keep `%h`, and both synopses read correctly. Installing the
   bookworm-built deb on trixie confirms the `t64` rename is satisfied.
 - `debian:12` with `--no-install-recommends`: daemon installed,
-  `60-quill-uinput.rules` absent, `quill-uinput` not installed. The opt-out
+  `60-foxloop-uinput.rules` absent, `foxloop-uinput` not installed. The opt-out
   works.
 - `fedora:latest`: same file checks, and `rpm -qR` shows correctly
   auto-generated requirements (`libva.so.2`, `libpipewire-0.3.so.0`,
   `libusb-1.0.so.0`, glibc symbol versions).
 
-In each, `quill-daemon` was run with no tablet and no display server: it logs
+In each, `foxloop-daemon` was run with no tablet and no display server: it logs
 its backend guess, tries AOA, and waits — killed by the test's own timeout
 (124), never a crash.
 
@@ -3109,7 +3109,7 @@ without the line.
   a packaged daemon actually *streams* is untested; only that it installs,
   resolves, and starts.
 - **The systemd user unit has never been started from its packaged location.**
-  `/usr/lib/systemd/user/quill-daemon.service` is a path the user manager
+  `/usr/lib/systemd/user/foxloop-daemon.service` is a path the user manager
   searches, and the unit file itself is verified (`systemd-analyze --user
   verify`, clean), but no container has a user manager to start it in.
 - **`SYSTEMD_USER_WANTS` from a system-wide rules file is untested.** The
@@ -3265,7 +3265,7 @@ its old pipeline. The app reads the unrotated video format, concludes the daemon
 is too old, and **writes `rotationDegrees = 0`** — silently discarding the
 user's setting over what can be a transient mismatch
 (`checkDaemonUnderstoodRotation`). Verified that a *fresh* daemon handles the
-same request correctly: `(re)creating Virtual-QuillDisplay at 1600x2560`,
+same request correctly: `(re)creating Virtual-FoxLoopDisplay at 1600x2560`,
 `encoder ready: capture 1600x2560 -> output 2560x1600, rotation 90deg`. The
 reset predates this work; adding reconnects only made it easier to reach.
 
@@ -3423,3 +3423,89 @@ from being reported as a 700ms regression.
   existing install.
 - **The `.aab` has never been uploaded anywhere**, so nothing has checked it the
   way Play would.
+
+## 30. Quill becomes FoxLoop
+
+A rename, with only one part that was not mechanical. Recorded because two of
+the pieces had to be deliberately *not* renamed, and a future reader finding
+`quill` still in the tree deserves to know it was a decision.
+
+### What changed
+
+572 occurrences across 64 files, plus 32 paths. Case-aware: `QUILL_` env vars
+became `FOXLOOP_`, `QuillTokens`/`QuillTheme`/`QuillType` became `FoxLoop*` (and
+their three files moved with them), `quill-daemon` became `foxloop-daemon`, and
+the packaging tree — wrapper script, systemd unit, both udev rules, both deb
+directories — followed.
+
+The AOA identity strings moved on both sides at once: `MANUFACTURER` and `MODEL`
+in `daemon/src/aoa.rs` and `accessory_filter.xml` have to be byte-identical or
+Android never routes `USB_ACCESSORY_ATTACHED` to the app. **A daemon from after
+this commit will not talk to an app from before it**, and the failure is
+silence, not an error — the intent simply goes nowhere.
+
+### The Android package moved too
+
+`com.quill.client` → `io.github.v_inn.foxloop`, taking the Kotlin source tree
+with it. `com.quill.client` was never a domain anyone controlled; the new one is
+the reverse-DNS form of a GitHub account that does exist, which is what a Play
+listing wants anyway.
+
+The cost is the usual one and it is not small: Android keys update eligibility
+on `applicationId`, so this is a *different app*. The installed copy cannot be
+updated over — it has to be uninstalled, reinstalled, and replugged to re-grant
+the USB accessory permission (Milestone 8's trap, hit again). Acceptable only
+because nothing has been published; had this been on Play, it would not be.
+
+The signing key is untouched by that. Verified rather than assumed — the release
+APK built after the rename reports
+
+    Signer #1 certificate SHA-256 digest: f9264e72ddf3d8df5a641723f68d9e44fe2086888248df5d79079e77879f6f7d
+
+which is the fingerprint from before. Same key, different app identity: the two
+are independent, and only the second one moved.
+
+### What was deliberately left saying `quill`
+
+- **The four Gradle signing properties** (`quillKeystoreFile`, `quillKeyAlias`,
+  `quillKeystorePassword`, `quillKeyPassword`) and **the keystore filename**
+  `~/quill-release.jks`. Both live in `~/.gradle/gradle.properties`, outside
+  this repository, in a file that holds the keystore password in cleartext.
+  Renaming the lookups without editing that file fails *silently*: the
+  properties resolve to null, `canSignRelease` goes false, and the release build
+  succeeds — unsigned. That fallback is deliberate (Milestone 29) and is exactly
+  what makes the rename dangerous here. A name is not worth a quietly unsigned
+  release; the reasoning is in a comment at the lookup site.
+- **`Projects/Quill` in two paths.** The checkout directory was not renamed, so
+  these are still correct. `experiments/evdi-bringup/vendor/upgrade-evdi.sh`
+  hardcodes it, and Milestone 8 quotes it as history.
+
+### This file was rewritten, which it is not supposed to be
+
+MILESTONES is append-only, and a global rename violates that. Done anyway: the
+alternative is a project memory that cannot be found by grepping the project's
+own name, which is most of what this file is for.
+
+No finding, number or conclusion was altered — only the name. **Three quoted log
+lines now read `foxloop` where the tool at the time actually printed `quill`:**
+the `[lock] another quill daemon is already running` line in Milestone 22, the
+`[aoa] QUILL_USB_RESET:` line in Milestone 22, and the `Failed at step NAMESPACE
+spawning /usr/bin/quill-daemon` line in Milestone 27. They match what the code
+prints today, not what was observed then. Nothing else in the file is a
+transcript.
+
+### Not verified
+
+- **Nothing was run on the tablet.** The daemon builds and its 78 tests pass;
+  the Android client builds in both variants and its unit tests pass; the
+  release APK's certificate was checked. No renamed build has held a USB
+  session, so the AOA handshake under the new `MANUFACTURER`/`MODEL` pair is
+  reasoned, not observed.
+- **The uninstall/reinstall path has not been walked.** The claim that the old
+  app cannot be updated in place is how Android is documented to behave, not
+  something this commit demonstrated.
+- **The deb and rpm packages were not rebuilt.** Their names, paths and
+  maintainer scripts were renamed by the same pass and are unexercised; the
+  container build in Milestone 27 is what would prove them.
+- **The udev rules were renamed but not reinstalled system-wide here**, so no
+  replug has confirmed auto-launch still fires under the new rule filename.

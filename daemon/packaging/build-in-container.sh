@@ -18,7 +18,7 @@ format=${1:?usage: build-in-container.sh deb|rpm}
 # /src is where build-packages.sh bind-mounts the staged tree. CI runs this
 # same script inside a job container instead, where the checkout is somewhere
 # else entirely, so the root is overridable.
-src_root=${QUILL_SRC:-/src}
+src_root=${FOXLOOP_SRC:-/src}
 cd "$src_root/daemon"
 
 # Everything under /src is bind-mounted from the host and the container runs as
@@ -86,23 +86,23 @@ rustc --version
 gen=packaging/generated
 mkdir -p "$gen"
 
-sed 's|exec ~/.local/bin/quill-daemon|exec /usr/bin/quill-daemon|' \
-    packaging/quill > "$gen/quill"
-grep -q '^exec /usr/bin/quill-daemon ' "$gen/quill" || {
-    echo "packaging: wrapper path rewrite matched nothing -- packaging/quill changed?" >&2
+sed 's|exec ~/.local/bin/foxloop-daemon|exec /usr/bin/foxloop-daemon|' \
+    packaging/foxloop > "$gen/foxloop"
+grep -q '^exec /usr/bin/foxloop-daemon ' "$gen/foxloop" || {
+    echo "packaging: wrapper path rewrite matched nothing -- packaging/foxloop changed?" >&2
     exit 1
 }
-chmod 755 "$gen/quill"
+chmod 755 "$gen/foxloop"
 
-sed 's|^ExecStart=%h/.local/bin/quill-daemon|ExecStart=/usr/bin/quill-daemon|' \
-    packaging/quill-daemon.service > "$gen/quill-daemon.service"
-grep -q '^ExecStart=/usr/bin/quill-daemon ' "$gen/quill-daemon.service" || {
+sed 's|^ExecStart=%h/.local/bin/foxloop-daemon|ExecStart=/usr/bin/foxloop-daemon|' \
+    packaging/foxloop-daemon.service > "$gen/foxloop-daemon.service"
+grep -q '^ExecStart=/usr/bin/foxloop-daemon ' "$gen/foxloop-daemon.service" || {
     echo "packaging: unit ExecStart rewrite matched nothing -- the unit changed?" >&2
     exit 1
 }
 # %h is kept everywhere else on purpose: the daemon's data and config still
 # live in the user's home, and ReadWritePaths must keep pointing there.
-grep -q '^ReadWritePaths=%h/' "$gen/quill-daemon.service" || {
+grep -q '^ReadWritePaths=%h/' "$gen/foxloop-daemon.service" || {
     echo "packaging: unit lost its %h ReadWritePaths -- refusing to ship it" >&2
     exit 1
 }
@@ -110,7 +110,7 @@ grep -q '^ReadWritePaths=%h/' "$gen/quill-daemon.service" || {
 # --- Build ------------------------------------------------------------------
 # Just the daemon: src/bin/uinput_test.rs and vui_bitstream_test.rs are
 # throwaway diagnostics (see MILESTONES.md) and have no business in a package.
-cargo build --release --bin quill-daemon
+cargo build --release --bin foxloop-daemon
 
 case "$format" in
     deb)
@@ -129,22 +129,22 @@ case "$format" in
 
         # cargo-deb has no field for a per-variant synopsis: the one-line
         # Description comes from `package.description` for every package it
-        # builds. For quill-uinput that line would describe the daemon, so it
+        # builds. For foxloop-uinput that line would describe the daemon, so it
         # is rewritten here -- unpack, replace the first Description line,
         # repack -- and verified, because a silent no-op would ship the wrong
         # text.
-        uinput_debs=("$out"/quill-uinput_*.deb)
+        uinput_debs=("$out"/foxloop-uinput_*.deb)
         [ ${#uinput_debs[@]} -eq 1 ] && [ -f "${uinput_debs[0]}" ] || {
-            echo "packaging: expected exactly one quill-uinput deb in $out, got ${uinput_debs[*]}" >&2
+            echo "packaging: expected exactly one foxloop-uinput deb in $out, got ${uinput_debs[*]}" >&2
             exit 1
         }
         uinput_deb=${uinput_debs[0]}
         work=$(mktemp -d)
         dpkg-deb -R "$uinput_deb" "$work"
-        sed -i '0,/^Description: /s|^Description: .*|Description: udev rule letting Quill'"'"'s pen report pressure and tilt|' \
+        sed -i '0,/^Description: /s|^Description: .*|Description: udev rule letting FoxLoop'"'"'s pen report pressure and tilt|' \
             "$work/DEBIAN/control"
         grep -q '^Description: udev rule ' "$work/DEBIAN/control" || {
-            echo "packaging: quill-uinput synopsis rewrite matched nothing" >&2
+            echo "packaging: foxloop-uinput synopsis rewrite matched nothing" >&2
             exit 1
         }
         # The rewrite replaces one line, so it only holds while cargo-deb keeps
@@ -154,7 +154,7 @@ case "$format" in
         # what shipped before this check existed.
         awk '/^Description: /{getline; print; exit}' "$work/DEBIAN/control" \
             | grep -q '^ Installs one udev rule ' || {
-            echo "packaging: quill-uinput description carries a wrapped synopsis -- package.description too long?" >&2
+            echo "packaging: foxloop-uinput description carries a wrapped synopsis -- package.description too long?" >&2
             exit 1
         }
         rm -f "$uinput_deb"

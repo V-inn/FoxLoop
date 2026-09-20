@@ -13,7 +13,7 @@
 
     <application
         android:allowBackup="false"
-        android:label="Quill"
+        android:label="FoxLoop"
         android:theme="@android:style/Theme.Black.NoTitleBar">
         <activity
             android:name=".MainActivity"
@@ -74,7 +74,7 @@
              system chrome to hang a menu off.
 
              NoTitleBar, and no android:label: with a title bar this activity
-             drew "Quill settings" twice, once as system chrome from the label
+             drew "FoxLoop settings" twice, once as system chrome from the label
              and once as the screen's own first heading. -->
         <activity
             android:name=".SettingsActivity"

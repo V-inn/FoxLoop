@@ -25,7 +25,7 @@
 //!
 //! Consequence for the sudo story: nothing on this path needs root, ever. The
 //! one and only privileged step left on GNOME is granting access to
-//! `/dev/uinput` (see `packaging/60-quill-uinput.rules`), which is a single
+//! `/dev/uinput` (see `packaging/60-foxloop-uinput.rules`), which is a single
 //! one-time udev rule.
 //!
 //! **Not yet live-tested.** Written against mutter's published D-Bus interface
@@ -120,7 +120,7 @@ pub fn start(width: u32, height: u32, cursor: CursorRendering) -> Result<u32, St
     let (tx, rx) = std::sync::mpsc::channel::<Result<u32, String>>();
 
     std::thread::Builder::new()
-        .name("quill-mutter-screencast".to_string())
+        .name("foxloop-mutter-screencast".to_string())
         .spawn(move || {
             let rt = match tokio::runtime::Builder::new_current_thread().enable_all().build() {
                 Ok(rt) => rt,
@@ -329,30 +329,30 @@ fn mode(width: u32, height: u32) -> HashMap<&'static str, Value<'static>> {
         // Left unset by default on purpose: with no physical size to go on,
         // mutter picks a scale for the monitor itself, and overriding that from
         // a daemon would silently override the user's own display settings too.
-        // `QUILL_GNOME_SCALE` is for the case where it guesses wrong on a
+        // `FOXLOOP_GNOME_SCALE` is for the case where it guesses wrong on a
         // particular tablet.
         mode.insert("preferred-scale", Value::from(scale));
     }
     mode
 }
 
-/// `QUILL_GNOME_IS_PLATFORM=0` turns the "treat it as a real monitor" hint off,
+/// `FOXLOOP_GNOME_IS_PLATFORM=0` turns the "treat it as a real monitor" hint off,
 /// which is the difference between GNOME showing its screen-sharing indicator
 /// for this output or not. Kept overridable because it is a hint about intent,
 /// and someone may well want the indicator.
 fn is_platform() -> bool {
     !matches!(
-        std::env::var("QUILL_GNOME_IS_PLATFORM").as_deref(),
+        std::env::var("FOXLOOP_GNOME_IS_PLATFORM").as_deref(),
         Ok("0") | Ok("false") | Ok("no")
     )
 }
 
 fn preferred_scale() -> Option<f64> {
-    let raw = std::env::var("QUILL_GNOME_SCALE").ok()?;
+    let raw = std::env::var("FOXLOOP_GNOME_SCALE").ok()?;
     match raw.parse::<f64>() {
         Ok(scale) if scale > 0.0 => Some(scale),
         _ => {
-            eprintln!("[gnome] QUILL_GNOME_SCALE={raw} is not a positive number -- ignoring it");
+            eprintln!("[gnome] FOXLOOP_GNOME_SCALE={raw} is not a positive number -- ignoring it");
             None
         }
     }

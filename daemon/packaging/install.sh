@@ -7,26 +7,26 @@
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
-if [ ! -f target/release/quill-daemon ]; then
+if [ ! -f target/release/foxloop-daemon ]; then
     echo "release binary not found -- run 'cargo build --release' first" >&2
     exit 1
 fi
 
-# ~/.config/quill is created here rather than lazily by the daemon because the
+# ~/.config/foxloop is created here rather than lazily by the daemon because the
 # unit's ProtectSystem=strict makes everything outside ReadWritePaths read-only
 # -- a missing directory there is a unit that refuses to start, not a directory
 # the daemon can still create for itself.
-mkdir -p ~/.local/bin ~/.local/share/quill ~/.config/quill ~/.config/systemd/user
+mkdir -p ~/.local/bin ~/.local/share/foxloop ~/.config/foxloop ~/.config/systemd/user
 # Symlinked, not copied: a stable path for the unit file to reference no
 # matter where this repo is checked out, that stays current across rebuilds
 # without needing to reinstall.
-ln -sf "$(pwd)/target/release/quill-daemon" ~/.local/bin/quill-daemon
-# `quill` itself is copied, not symlinked -- it's a tiny fixed wrapper
+ln -sf "$(pwd)/target/release/foxloop-daemon" ~/.local/bin/foxloop-daemon
+# `foxloop` itself is copied, not symlinked -- it's a tiny fixed wrapper
 # script, not a build artifact tied to this checkout.
-cp packaging/quill ~/.local/bin/quill
-chmod +x ~/.local/bin/quill
+cp packaging/foxloop ~/.local/bin/foxloop
+chmod +x ~/.local/bin/foxloop
 
-cp packaging/quill-daemon.service ~/.config/systemd/user/quill-daemon.service
+cp packaging/foxloop-daemon.service ~/.config/systemd/user/foxloop-daemon.service
 systemctl --user daemon-reload
 
 echo "user unit installed. Now run (needs root):"
@@ -37,9 +37,9 @@ echo "user unit installed. Now run (needs root):"
 if [ -r /dev/uinput ] && [ -w /dev/uinput ]; then
     echo "  # (/dev/uinput is already accessible to you -- nothing to do for input)"
 else
-    echo "  sudo cp $(pwd)/packaging/60-quill-uinput.rules /etc/udev/rules.d/60-quill-uinput.rules"
+    echo "  sudo cp $(pwd)/packaging/60-foxloop-uinput.rules /etc/udev/rules.d/60-foxloop-uinput.rules"
 fi
-echo "  sudo cp $(pwd)/packaging/99-quill-daemon.rules /etc/udev/rules.d/99-quill-daemon.rules"
+echo "  sudo cp $(pwd)/packaging/99-foxloop-daemon.rules /etc/udev/rules.d/99-foxloop-daemon.rules"
 echo "  sudo udevadm control --reload"
 echo "  sudo udevadm trigger --subsystem-match=misc"
 echo

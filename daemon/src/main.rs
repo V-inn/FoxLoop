@@ -91,7 +91,7 @@ async fn main() {
              \n\
              This is the only step in the whole GNOME setup that needs root, and it is one-time:\n\
              \n\
-             \x20   sudo cp packaging/60-quill-uinput.rules /etc/udev/rules.d/60-quill-uinput.rules\n\
+             \x20   sudo cp packaging/60-foxloop-uinput.rules /etc/udev/rules.d/60-foxloop-uinput.rules\n\
              \x20   sudo udevadm control --reload && sudo udevadm trigger --subsystem-match=misc\n\
              \n\
              Then log out and back in (the rule grants access to whoever is logged in at the seat)."
@@ -114,10 +114,10 @@ async fn main() {
 
     // Cursor rendering is the client's choice, carried in the handshake, which
     // is why the transport is brought up before any portal call (Milestone 15
-    // established that ordering for the orientation logic). `QUILL_CURSOR`
+    // established that ordering for the orientation logic). `FOXLOOP_CURSOR`
     // still overrides, for capture-only runs where there is no client at all.
     let cursor = match (
-        std::env::var("QUILL_CURSOR").as_deref(),
+        std::env::var("FOXLOOP_CURSOR").as_deref(),
         transport_setup.as_ref(),
     ) {
         (Ok("client"), _) => portal_capture::CursorRendering::ClientSide,
@@ -252,7 +252,7 @@ async fn main() {
     println!("frames captured+encoded: {}", stats.frame_count);
     println!("stale frames dropped: {}", stats.dropped_stale);
     // `durations` is empty whenever frames were counted but never encoded --
-    // reachable via QUILL_NO_ENCODE (see portal_capture.rs), which deliberately
+    // reachable via FOXLOOP_NO_ENCODE (see portal_capture.rs), which deliberately
     // returns before the encoder to measure the capture path's own throughput.
     // Previously this unwrapped and panicked right after printing the frame
     // count, losing the rest of the summary.

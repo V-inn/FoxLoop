@@ -1,6 +1,6 @@
-# Quill daemon
+# FoxLoop daemon
 
-The Linux half of Quill. It captures a virtual monitor, encodes it to H.264 on
+The Linux half of FoxLoop. It captures a virtual monitor, encodes it to H.264 on
 the GPU, ships the frames to the tablet over USB, and turns the pen and touch
 records that come back into real Linux input devices.
 
@@ -33,19 +33,19 @@ The tablet half lives in [`../android-client`](../android-client/README.md).
 If you are on Debian, Ubuntu or Fedora, this is the whole install — no build
 toolchain, no Rust, no udev rules to copy by hand. Download the two files for
 your distribution from the
-[latest release](https://github.com/V-inn/Quill/releases/latest), then:
+[latest release](https://github.com/V-inn/FoxLoop/releases/latest), then:
 
 ```sh
 # Debian / Ubuntu
-sudo apt install ./quill_*.deb ./quill-uinput_*.deb
+sudo apt install ./foxloop_*.deb ./foxloop-uinput_*.deb
 
-# Fedora  -- the [0-9] is what keeps `quill-*` from also matching quill-uinput
-sudo dnf install ./quill-[0-9]*.rpm ./quill-uinput-*.rpm
+# Fedora  -- the [0-9] is what keeps `foxloop-*` from also matching foxloop-uinput
+sudo dnf install ./foxloop-[0-9]*.rpm ./foxloop-uinput-*.rpm
 ```
 
-Installing `quill` alone is enough to get a picture; `quill-uinput` is what
+Installing `foxloop` alone is enough to get a picture; `foxloop-uinput` is what
 makes the pen report real pressure and tilt. Both package managers pull it in
-by default when the two files are alongside each other, because `quill`
+by default when the two files are alongside each other, because `foxloop`
 recommends it — see below for when you would not want that.
 
 You still need the compositor and GPU support from
@@ -59,8 +59,8 @@ already running — plug the tablet in, and unlock it.
 
 ### Multi-user and managed machines
 
-Everything a Quill install adds to a shared machine is in one package,
-`quill-uinput`, which contains exactly one udev rule. Read it before deciding;
+Everything a FoxLoop install adds to a shared machine is in one package,
+`foxloop-uinput`, which contains exactly one udev rule. Read it before deciding;
 it is four lines and one of them is the rule.
 
 That rule tags `/dev/uinput` with `uaccess`, which makes systemd-logind attach
@@ -73,7 +73,7 @@ a group — *would* have granted it more broadly.
 
 What it costs to decline it: the daemon falls back to the `RemoteDesktop`
 portal, which carries **no pressure and no tilt**. On a machine that is only
-ever used by the person sitting at it, that is most of Quill's value, which is
+ever used by the person sitting at it, that is most of FoxLoop's value, which is
 why the package is recommended rather than merely suggested. On a lab or shared
 machine, the tradeoff is genuinely yours to make.
 
@@ -81,10 +81,10 @@ To install without it:
 
 ```sh
 # Debian / Ubuntu
-sudo apt install --no-install-recommends ./quill_*.deb
+sudo apt install --no-install-recommends ./foxloop_*.deb
 
 # Fedora
-sudo dnf install --setopt=install_weak_deps=False ./quill-[0-9]*.rpm
+sudo dnf install --setopt=install_weak_deps=False ./foxloop-[0-9]*.rpm
 ```
 
 One KDE caveat worth knowing before you decline it: some versions of
@@ -92,9 +92,9 @@ One KDE caveat worth knowing before you decline it: some versions of
 applications, so on those the fallback does not degrade input — it has no input
 at all. GNOME is unaffected.
 
-`quill` itself installs no setuid binary, adds no user or group, and starts
+`foxloop` itself installs no setuid binary, adds no user or group, and starts
 nothing at boot. Its only other system-wide file is
-`/usr/lib/udev/rules.d/99-quill-daemon.rules`, which starts the daemon in the
+`/usr/lib/udev/rules.d/99-foxloop-daemon.rules`, which starts the daemon in the
 seated user's own session when a Samsung USB device is attached and grants
 nothing. Both rules go in `/usr/lib/udev/rules.d`, so anything you put in
 `/etc/udev/rules.d` overrides them.
@@ -139,8 +139,8 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ### Compile
 
 ```sh
-git clone https://github.com/V-inn/Quill.git
-cd Quill/daemon
+git clone https://github.com/V-inn/FoxLoop.git
+cd FoxLoop/daemon
 cargo build --release
 ```
 
@@ -159,8 +159,8 @@ The two udev rules it names do different jobs:
 
 | Rule | Why |
 | --- | --- |
-| `60-quill-uinput.rules` | Lets your user open `/dev/uinput`, so the daemon can create the virtual pen, touchpad and pointer. **This is the only thing in Quill that needs root**, and only once. |
-| `99-quill-daemon.rules` | Starts the daemon automatically when the tablet is plugged in. Skip it if you would rather launch by hand. |
+| `60-foxloop-uinput.rules` | Lets your user open `/dev/uinput`, so the daemon can create the virtual pen, touchpad and pointer. **This is the only thing in FoxLoop that needs root**, and only once. |
+| `99-foxloop-daemon.rules` | Starts the daemon automatically when the tablet is plugged in. Skip it if you would rather launch by hand. |
 
 `install.sh` checks whether `/dev/uinput` is already accessible and stays quiet
 about the first rule if it is — some systems already ship an equivalent (Steam
@@ -182,17 +182,17 @@ With the udev rule installed there is nothing to run: plug the tablet in, unlock
 it, and the daemon starts. Otherwise:
 
 ```sh
-quill              # AOA over USB, the normal mode
-quill 7777         # adb-forward TCP instead, for development
+foxloop              # AOA over USB, the normal mode
+foxloop 7777         # adb-forward TCP instead, for development
 
 # Capture only, with no tablet at all -- note this is the raw binary, not the
-# wrapper: `quill` always passes a transport, and anything that isn't `aoa` is
+# wrapper: `foxloop` always passes a transport, and anything that isn't `aoa` is
 # parsed as a TCP port.
-quill-daemon ~/.local/share/quill/output.h264
+foxloop-daemon ~/.local/share/foxloop/output.h264
 ```
 
 **First run on KDE** shows the desktop portal's screen-picker dialog once. Pick
-`Virtual-QuillDisplay`. The answer is remembered, so it never asks again — that
+`Virtual-FoxLoopDisplay`. The answer is remembered, so it never asks again — that
 is what lets the daemon start unattended on a later plug-in. **On GNOME there is
 no dialog at all.**
 
@@ -206,17 +206,17 @@ Mostly diagnostics. None are needed for normal use.
 
 | Variable | Effect |
 | --- | --- |
-| `QUILL_BACKEND` | `gnome` or `kde`, overriding detection. |
-| `QUILL_CURSOR` | `client` or `embedded`, overriding the tablet's own setting. |
-| `QUILL_GNOME_SCALE` | Sets the virtual monitor's scale on GNOME, when mutter guesses badly. |
-| `QUILL_GNOME_IS_PLATFORM` | `0` makes GNOME treat the output as a shared screen, showing its screen-sharing indicator. |
-| `QUILL_FORCE_NO_UINPUT` | Pretends `/dev/uinput` is unavailable, to exercise the no-root input fallback. |
-| `QUILL_FORCE_SHM` | Drops the DMA-BUF offer, forcing PipeWire's shared-memory path. |
-| `QUILL_NO_ENCODE` | Captures without encoding, to measure the capture path alone. |
-| `QUILL_DUMP_H264` | Writes the encoded stream to the output path. |
-| `QUILL_DUMP_FRAME` | Dumps the first raw frame to `/tmp/quill_frame_dump.ppm`. |
-| `QUILL_BARCODE_PROBE` | Decodes the latency probe's barcode from captured frames. |
-| `QUILL_USB_RESET` | Resets the USB device once before connecting, for a wedged port. |
+| `FOXLOOP_BACKEND` | `gnome` or `kde`, overriding detection. |
+| `FOXLOOP_CURSOR` | `client` or `embedded`, overriding the tablet's own setting. |
+| `FOXLOOP_GNOME_SCALE` | Sets the virtual monitor's scale on GNOME, when mutter guesses badly. |
+| `FOXLOOP_GNOME_IS_PLATFORM` | `0` makes GNOME treat the output as a shared screen, showing its screen-sharing indicator. |
+| `FOXLOOP_FORCE_NO_UINPUT` | Pretends `/dev/uinput` is unavailable, to exercise the no-root input fallback. |
+| `FOXLOOP_FORCE_SHM` | Drops the DMA-BUF offer, forcing PipeWire's shared-memory path. |
+| `FOXLOOP_NO_ENCODE` | Captures without encoding, to measure the capture path alone. |
+| `FOXLOOP_DUMP_H264` | Writes the encoded stream to the output path. |
+| `FOXLOOP_DUMP_FRAME` | Dumps the first raw frame to `/tmp/foxloop_frame_dump.ppm`. |
+| `FOXLOOP_BARCODE_PROBE` | Decodes the latency probe's barcode from captured frames. |
+| `FOXLOOP_USB_RESET` | Resets the USB device once before connecting, for a wedged port. |
 
 ---
 
@@ -227,8 +227,8 @@ Start here — the daemon narrates every stage, tagged by subsystem
 `[pipewire]`, `[vaapi]`, `[input]`):
 
 ```sh
-journalctl --user -u quill-daemon -f     # if it was started by udev
-quill                                     # or just run it in a terminal
+journalctl --user -u foxloop-daemon -f     # if it was started by udev
+foxloop                                     # or just run it in a terminal
 ```
 
 | Symptom | Cause |
@@ -236,10 +236,10 @@ quill                                     # or just run it in a terminal
 | `failed to open /dev/dri/renderD128` | Your user can't reach the GPU. Add yourself to the `render` group and log back in. If the node doesn't exist at all, there is no VAAPI-capable GPU. |
 | The pen does nothing, `[input] /dev/uinput not accessible` | The uinput rule isn't installed, or you haven't logged out and back in since. On KDE the daemon falls back to position-and-click only; on GNOME it exits and tells you the fix. |
 | No virtual monitor appears on KDE | `krfb` isn't installed, so `krfb-virtualmonitor` isn't there. `[orientation] failed to spawn` says so. |
-| The picker dialog appears on every launch | The saved answer was revoked. Pick the monitor once more; if it keeps happening, something else is invalidating it — check that a second daemon isn't running (`[lock] another quill daemon is already running`). |
+| The picker dialog appears on every launch | The saved answer was revoked. Pick the monitor once more; if it keeps happening, something else is invalidating it — check that a second daemon isn't running (`[lock] another foxloop daemon is already running`). |
 | Nothing happens on plug-in | The udev rule isn't installed, or your user session isn't active. `udevadm monitor` while plugging in shows whether the rule fires. |
 | `[transport] AOA connect failed` | The tablet is locked, or the app isn't installed, or the cable is charge-only. Unlock the tablet first — Android will not route the accessory intent to a locked device. |
-| The tablet shows a frozen or black screen after a replug | Stale USB data survived the reconnect. The daemon recovers on its own now; if it doesn't, `QUILL_USB_RESET=1 quill`. |
+| The tablet shows a frozen or black screen after a replug | Stale USB data survived the reconnect. The daemon recovers on its own now; if it doesn't, `FOXLOOP_USB_RESET=1 foxloop`. |
 | The tablet mirrors your main display instead of extending it | Known, on KDE. Switch it to "Extend" in System Settings → Display. |
 
 ---

@@ -3,5 +3,5 @@
      exactly (manufacturer/model), or Android won't route the
      USB_ACCESSORY_ATTACHED intent to this app at all. -->
 <resources>
-    <usb-accessory manufacturer="Quill" model="Quill Virtual Display" />
+    <usb-accessory manufacturer="FoxLoop" model="FoxLoop Virtual Display" />
 </resources>

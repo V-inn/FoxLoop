@@ -1,6 +1,6 @@
-# Quill Android client
+# FoxLoop Android client
 
-The tablet half of Quill: decodes the H.264 stream the daemon sends over USB and
+The tablet half of FoxLoop: decodes the H.264 stream the daemon sends over USB and
 draws it fullscreen, and sends S Pen / touch input back the other way over the
 same connection.
 
@@ -37,9 +37,9 @@ keep matching the identification strings `daemon/src/aoa.rs` sends).
 | `FramePreview.kt` | Grabs a still of the desktop on the way into settings, for the slab |
 | `GearButton.kt` | The draggable, edge-snapping settings entry point that survives streaming |
 | `GearEdge.kt` | Which edge it is parked against |
-| `ui/QuillTokens.kt` | Colours, spacing, shapes — in Kotlin, not `res/values` |
-| `ui/QuillType.kt` | The three faces, loaded from `res/font` |
-| `ui/QuillTheme.kt` | The little `material3` would have given us, including the reduced-motion scale |
+| `ui/FoxLoopTokens.kt` | Colours, spacing, shapes — in Kotlin, not `res/values` |
+| `ui/FoxLoopType.kt` | The three faces, loaded from `res/font` |
+| `ui/FoxLoopTheme.kt` | The little `material3` would have given us, including the reduced-motion scale |
 | `ui/Controls.kt` | Bespoke switch, segmented choice, buttons, focus ring |
 | `ui/SlabControl.kt` | The tablet drawn to scale, with the real desktop in it |
 | `ui/SettingsScreen.kt` | Two-pane layout and the sections |

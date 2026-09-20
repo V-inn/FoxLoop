@@ -156,7 +156,7 @@ pub fn build_sps(p: &H264Params) -> Vec<u8> {
 /// Sunshine rewrites its hardware encoder's SPS this way host-side
 /// (`src/cbs.cpp`, `make_sps_h264`), and moonlight-android patches it
 /// client-side on devices whose encoders omit it
-/// (`MediaCodecDecoderRenderer.java`, "increases decoding latency"). Quill owns
+/// (`MediaCodecDecoderRenderer.java`, "increases decoding latency"). FoxLoop owns
 /// both ends, so emitting it correctly here means the client needs no patching.
 ///
 /// Everything ahead of `bitstream_restriction_flag` is signalled absent.

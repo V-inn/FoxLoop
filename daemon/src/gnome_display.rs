@@ -15,7 +15,7 @@
 //!   it. So the pixel size gets looked up per connector, swapped if the output
 //!   is rotated a quarter turn, and divided by the scale.
 //! - **Our monitor has no name we chose.** `krfb-virtualmonitor` takes a
-//!   `--name` and KWin echoes it back as `Virtual-QuillDisplay`. Mutter names
+//!   `--name` and KWin echoes it back as `Virtual-FoxLoopDisplay`. Mutter names
 //!   virtual monitors itself; what it does set, in
 //!   `meta-stream-source-virtual.c`, is a fixed vendor/product pair
 //!   ("MetaVendor" / "Virtual remote monitor") and a per-monitor serial
@@ -98,7 +98,7 @@ impl Monitor {
         &self.id.0
     }
 
-    fn is_quill_virtual(&self) -> bool {
+    fn is_foxloop_virtual(&self) -> bool {
         self.id.1 == VIRTUAL_VENDOR && self.id.2 == VIRTUAL_PRODUCT
     }
 
@@ -184,7 +184,7 @@ fn build_layout(
     // wrong is still better than no warping at all, and it's logged.
     let virtual_connectors: Vec<&str> = monitors
         .iter()
-        .filter(|m| m.is_quill_virtual())
+        .filter(|m| m.is_foxloop_virtual())
         .map(Monitor::connector)
         .collect();
     if virtual_connectors.is_empty() {

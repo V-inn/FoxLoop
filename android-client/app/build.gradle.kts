@@ -14,6 +14,13 @@ plugins {
 // All four deliberately fall back to null. A machine without them still builds
 // a release -- unsigned, and named so -- instead of failing, which keeps the
 // project buildable by anyone who clones it.
+//
+// The four property names still say `quill`, and stay that way on purpose.
+// They are looked up in ~/.gradle/gradle.properties, which is outside this
+// repository and holds the keystore password in cleartext. Renaming them here
+// without editing that file is silent: the lookups return null, `canSignRelease`
+// goes false, and the release build succeeds -- unsigned. A rename that can
+// only fail quietly is not worth the tidiness.
 val quillKeystoreFile = providers.gradleProperty("quillKeystoreFile").orNull
 val quillKeystorePassword = providers.gradleProperty("quillKeystorePassword").orNull
 val quillKeyAlias = providers.gradleProperty("quillKeyAlias").orNull
@@ -23,11 +30,11 @@ val canSignRelease = listOf(
 ).all { it != null } && file(quillKeystoreFile!!).exists()
 
 android {
-    namespace = "com.quill.client"
+    namespace = "io.github.v_inn.foxloop"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.quill.client"
+        applicationId = "io.github.v_inn.foxloop"
         minSdk = 26
         targetSdk = 36
         // Two numbers with very different lifetimes, and only one of them is
@@ -111,7 +118,7 @@ dependencies {
     // `foundation`, deliberately not `material3`: this design replaces every
     // Material default it would have supplied (the switch, the ground colour,
     // the type ramp, the elevation model), so ~1.4 MB of defaults would only
-    // have been fought at every control. See ui/QuillTheme.kt for the handful
+    // have been fought at every control. See ui/FoxLoopTheme.kt for the handful
     // of things built in its place.
     //
     // 2025.06.01 is Compose 1.8.3, the runtime generation contemporaneous with

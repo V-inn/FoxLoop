@@ -20,7 +20,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-/// Guards the `QUILL_USB_RESET` experiment to one reset per process --
+/// Guards the `FOXLOOP_USB_RESET` experiment to one reset per process --
 /// see `try_open_accessory`.
 static USB_RESET_DONE: AtomicBool = AtomicBool::new(false);
 
@@ -32,9 +32,9 @@ const ACCESSORY_GET_PROTOCOL: u8 = 51;
 const ACCESSORY_SEND_STRING: u8 = 52;
 const ACCESSORY_START: u8 = 53;
 
-const MANUFACTURER: &str = "Quill";
-const MODEL: &str = "Quill Virtual Display";
-const DESCRIPTION: &str = "Quill USB display + pen transport";
+const MANUFACTURER: &str = "FoxLoop";
+const MODEL: &str = "FoxLoop Virtual Display";
+const DESCRIPTION: &str = "FoxLoop USB display + pen transport";
 const VERSION: &str = "1.0";
 
 // Separate read/write timeouts, not one shared value: reads (particularly
@@ -234,9 +234,9 @@ fn try_open_accessory() -> Option<AoaTransport> {
         // Once per process, not once per scan: `connect`'s retry loop calls
         // this repeatedly, and resetting every time would never let the device
         // finish re-enumerating.
-        if std::env::var("QUILL_USB_RESET").is_ok() && !USB_RESET_DONE.swap(true, Ordering::SeqCst) {
+        if std::env::var("FOXLOOP_USB_RESET").is_ok() && !USB_RESET_DONE.swap(true, Ordering::SeqCst) {
             eprintln!(
-                "[aoa] QUILL_USB_RESET: resetting bus {} addr {} and waiting for it to re-enumerate...",
+                "[aoa] FOXLOOP_USB_RESET: resetting bus {} addr {} and waiting for it to re-enumerate...",
                 device.bus_number(),
                 device.address()
             );

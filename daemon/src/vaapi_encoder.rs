@@ -51,7 +51,7 @@ fn align16(v: u32) -> u32 {
 
 /// Walks the driver's coded-buffer segment list into one contiguous buffer.
 ///
-/// The list is written by the VA driver inside the buffer Quill allocated, and
+/// The list is written by the VA driver inside the buffer FoxLoop allocated, and
 /// until this was bounded, nothing validated it on the way back out: `size` was
 /// used directly as a slice length and `next` was chased until it happened to
 /// be null. A driver reporting an inflated `size` would copy adjacent process
@@ -105,7 +105,7 @@ unsafe fn collect_coded_segments(buf_ptr: *mut c_void, cap: usize) -> VaResult<V
 /// it. Nothing in the API forces those three to agree, so a slice built from
 /// `offsets`/`pitches` alone is sound only for as long as the driver is
 /// well-behaved. `vaDeriveImage` is the trust boundary here: the values come
-/// back from the VA driver (iHD, in practice), not from anything Quill
+/// back from the VA driver (iHD, in practice), not from anything FoxLoop
 /// computed. Checking costs two comparisons per frame and turns a potential
 /// out-of-bounds read *or write* into a returned error.
 fn plane0_extent(image: &ffi::VAImage, rows: u32, what: &str) -> VaResult<(usize, usize)> {

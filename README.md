@@ -1,4 +1,4 @@
-# Quill
+# FoxLoop
 
 Linux equivalent of SuperDisplay: use a Samsung Galaxy Tab as an extended desktop
 display over USB, with S Pen input (pressure, tilt, hover, side button) working like a
@@ -30,10 +30,10 @@ GNOME's own screen-cast interface — the same plumbing tools like OBS and Sunsh
 use); the pen input side uses the standard Linux virtual-input facility (uinput), the
 same one other Linux tablet-input tools use for pressure and tilt.
 
-Quill needs root exactly once, to install a udev rule granting your user access to
+FoxLoop needs root exactly once, to install a udev rule granting your user access to
 `/dev/uinput` — the device that lets it create the virtual pen and touchpad. Many
 systems already have an equivalent rule from another package; `install.sh` checks and
-tells you if you don't need it. Nothing else in Quill runs as root, and it never asks
+tells you if you don't need it. Nothing else in FoxLoop runs as root, and it never asks
 for a password again.
 
 ## Getting started
@@ -45,17 +45,17 @@ plug them together.
 
 You need a GPU that can encode H.264 through VAAPI — the encoder is hardware-only.
 Check with `vainfo | grep -E 'VAProfileH264.*EncSlice'`; if that prints nothing,
-Quill will not run. Intel and AMD graphics generally work, NVIDIA does not.
+FoxLoop will not run. Intel and AMD graphics generally work, NVIDIA does not.
 
 Grab the packages for your distribution from the
-[latest release](https://github.com/V-inn/Quill/releases/latest):
+[latest release](https://github.com/V-inn/FoxLoop/releases/latest):
 
 ```sh
 # Debian / Ubuntu
-sudo apt install ./quill_*.deb ./quill-uinput_*.deb
+sudo apt install ./foxloop_*.deb ./foxloop-uinput_*.deb
 
-# Fedora  -- the [0-9] is what keeps `quill-*` from also matching quill-uinput
-sudo dnf install ./quill-[0-9]*.rpm ./quill-uinput-*.rpm
+# Fedora  -- the [0-9] is what keeps `foxloop-*` from also matching foxloop-uinput
+sudo dnf install ./foxloop-[0-9]*.rpm ./foxloop-uinput-*.rpm
 
 # ...plus krfb on KDE, for the virtual monitor. GNOME needs nothing extra.
 sudo apt install krfb      # Debian / Ubuntu
@@ -64,7 +64,7 @@ sudo dnf install krfb      # Fedora
 
 Then **log out and back in**, so the pen permission applies to your session.
 
-`quill-uinput` is the one thing here that touches the rest of the machine: a
+`foxloop-uinput` is the one thing here that touches the rest of the machine: a
 single udev rule granting `/dev/uinput` to whoever is sitting at the computer,
 which is what lets the pen report pressure and tilt. On a shared machine, read
 [Multi-user and managed machines](./daemon/README.md#multi-user-and-managed-machines)
@@ -78,13 +78,13 @@ sudo apt install build-essential pkg-config curl clang libclang-dev \
                  libva-dev libpipewire-0.3-dev libusb-1.0-0-dev krfb
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
-git clone https://github.com/V-inn/Quill.git
-cd Quill/daemon
+git clone https://github.com/V-inn/FoxLoop.git
+cd FoxLoop/daemon
 cargo build --release
 ./packaging/install.sh
 ```
 
-`install.sh` prints two `sudo` lines to run — one udev rule that lets Quill create
+`install.sh` prints two `sudo` lines to run — one udev rule that lets FoxLoop create
 the virtual pen (this is the only step that needs root, and only once), and one
 that starts the daemon when you plug the tablet in.
 
@@ -96,7 +96,7 @@ Full detail, every option, and a troubleshooting table:
 ### 2. The tablet
 
 ```sh
-cd Quill/android-client
+cd FoxLoop/android-client
 echo "sdk.dir=$HOME/Android/Sdk" > local.properties
 ./gradlew assembleDebug
 adb install -r app/build/outputs/apk/debug/app-debug.apk
@@ -110,7 +110,7 @@ Connect the cable and unlock the tablet — Android will not hand the connection
 an app while the screen is locked. The app opens on its own.
 
 On KDE, the first run shows your desktop's screen-picker dialog once: choose
-`Virtual-QuillDisplay`. The answer is remembered, so it never asks again. On GNOME
+`Virtual-FoxLoopDisplay`. The answer is remembered, so it never asks again. On GNOME
 there is no dialog.
 
 Then drag a window onto the tablet.

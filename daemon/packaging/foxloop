@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Convenience wrapper for manual runs: `foxloop` starts the daemon with
+# sensible defaults (AOA transport, standard output path) instead of typing
+# out the full foxloop-daemon invocation each time. Pass an argument to
+# override the transport mode -- `foxloop 7777` for adb-forward TCP, `foxloop
+# none` for capture-only with no transport.
+set -euo pipefail
+mkdir -p ~/.local/share/foxloop
+exec ~/.local/bin/foxloop-daemon ~/.local/share/foxloop/output.h264 "${1:-aoa}"

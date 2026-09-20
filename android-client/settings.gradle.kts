@@ -13,5 +13,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "quill-client"
+rootProject.name = "foxloop-client"
 include(":app")

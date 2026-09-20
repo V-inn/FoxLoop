@@ -4,10 +4,15 @@
 #
 # Why this is a script on the developer's machine and not a workflow: the
 # signing key cannot go into CI. Losing it strands every installed copy and
-# leaking it lets someone else ship something that installs *as* Quill, so it
+# leaking it lets someone else ship something that installs *as* FoxLoop, so it
 # lives in ~/quill-release.jks and its password lives in
 # ~/.gradle/gradle.properties, on this machine only. That is also why
 # .github/workflows only builds the Linux packages.
+#
+# The keystore keeps its old filename through the Quill -> FoxLoop rename. The
+# path is a *value* in ~/.gradle/gradle.properties, so moving the file means
+# editing the same cleartext-password file by hand; the name buys nothing and
+# a mismatch costs a silently unsigned build.
 #
 # Nothing here ever reads, prints or passes the password: Gradle picks it up
 # from ~/.gradle/gradle.properties by itself (see app/build.gradle.kts). The
@@ -20,7 +25,7 @@
 #
 set -euo pipefail
 
-# The one identity that may ever ship as Quill. An APK signed by anything else
+# The one identity that may ever ship as FoxLoop. An APK signed by anything else
 # will not install over an existing copy, so publishing one is worse than
 # publishing nothing -- it is an update nobody can take.
 EXPECTED_FINGERPRINT=f9264e72ddf3d8df5a641723f68d9e44fe2086888248df5d79079e77879f6f7d
@@ -45,7 +50,7 @@ if [[ "$tag" != "v$version_name" ]]; then
     echo "bump versionName and versionCode in app/build.gradle.kts first." >&2
     exit 1
 fi
-echo "building Quill $version_name (versionCode $version_code) for $tag"
+echo "building FoxLoop $version_name (versionCode $version_code) for $tag"
 
 ./gradlew --quiet clean assembleRelease
 
@@ -70,14 +75,14 @@ fingerprint=$("$apksigner" verify --print-certs "$apk" |
     sed -n 's/^Signer #1 certificate SHA-256 digest: //p')
 if [[ "$fingerprint" != "$EXPECTED_FINGERPRINT" ]]; then
     echo "REFUSING TO PUBLISH: $apk is signed by $fingerprint" >&2
-    echo "expected $EXPECTED_FINGERPRINT -- this APK would not install as an update to Quill." >&2
+    echo "expected $EXPECTED_FINGERPRINT -- this APK would not install as an update to FoxLoop." >&2
     exit 1
 fi
 echo "signed by the expected key ($fingerprint)"
 
 # Named for the release rather than left as app-release.apk, which tells
 # someone who downloaded it nothing about what they have.
-out="quill-$version_name.apk"
+out="foxloop-$version_name.apk"
 cp "$apk" "$out"
 echo "built $out ($(du -h "$out" | cut -f1))"
 

@@ -58,7 +58,7 @@ fn from_desktop_list(value: &str) -> Option<Backend> {
 }
 
 fn detect() -> Backend {
-    if let Ok(forced) = std::env::var("QUILL_BACKEND") {
+    if let Ok(forced) = std::env::var("FOXLOOP_BACKEND") {
         let picked = match forced.to_ascii_lowercase().as_str() {
             "gnome" | "mutter" => Some(Backend::Gnome),
             "kde" | "kwin" | "plasma" => Some(Backend::Kde),
@@ -66,11 +66,11 @@ fn detect() -> Backend {
         };
         match picked {
             Some(b) => {
-                eprintln!("[desktop] QUILL_BACKEND={forced} -- forcing {}", b.name());
+                eprintln!("[desktop] FOXLOOP_BACKEND={forced} -- forcing {}", b.name());
                 return b;
             }
             None => eprintln!(
-                "[desktop] QUILL_BACKEND={forced} is not one of gnome/kde -- ignoring it and detecting"
+                "[desktop] FOXLOOP_BACKEND={forced} is not one of gnome/kde -- ignoring it and detecting"
             ),
         }
     }
@@ -92,7 +92,7 @@ fn detect() -> Backend {
 
     eprintln!(
         "[desktop] no GNOME/KDE marker found (XDG_CURRENT_DESKTOP unset or unrecognized, mutter \
-         not on the bus) -- assuming {}. Set QUILL_BACKEND=gnome or =kde to override.",
+         not on the bus) -- assuming {}. Set FOXLOOP_BACKEND=gnome or =kde to override.",
         Backend::Kde.name()
     );
     Backend::Kde

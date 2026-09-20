@@ -133,7 +133,7 @@ const MAX_DIM: u32 = 16384;
 
 /// How much garbage to walk past looking for a handshake before giving up. A
 /// stale-USB-data desync is a few hundred bytes at most; a megabyte means this
-/// is not a Quill client at all.
+/// is not a FoxLoop client at all.
 const MAX_RESYNC_BYTES: usize = 1 << 20;
 /// Bounded so a stream of plausible-looking `"QUIL"` noise can't spin forever.
 const MAX_HANDSHAKE_ATTEMPTS: usize = 8;
@@ -155,7 +155,7 @@ fn sync_to_magic(r: &mut impl Read) -> io::Result<usize> {
         if discarded >= MAX_RESYNC_BYTES {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
-                format!("no handshake magic in the first {MAX_RESYNC_BYTES} bytes -- not a Quill client"),
+                format!("no handshake magic in the first {MAX_RESYNC_BYTES} bytes -- not a FoxLoop client"),
             ));
         }
         window.rotate_left(1);

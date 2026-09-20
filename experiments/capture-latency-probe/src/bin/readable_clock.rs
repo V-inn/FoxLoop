@@ -86,7 +86,7 @@ fn main() {
     opts.topmost = true;
 
     let mut window =
-        Window::new("Quill Readable Clock", WIDTH, HEIGHT, opts).expect("failed to open window");
+        Window::new("FoxLoop Readable Clock", WIDTH, HEIGHT, opts).expect("failed to open window");
     window.set_target_fps(60);
 
     let mut buffer = vec![0u32; WIDTH * HEIGHT];

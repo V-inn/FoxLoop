@@ -74,7 +74,7 @@ pub fn uinput_accessible() -> bool {
     // actually does have uinput access -- there's no way to safely fake a
     // real permission-denied /dev/uinput without root, which defeats the
     // purpose of testing "what a no-root machine sees".
-    if std::env::var("QUILL_FORCE_NO_UINPUT").is_ok() {
+    if std::env::var("FOXLOOP_FORCE_NO_UINPUT").is_ok() {
         return false;
     }
     OpenOptions::new().read(true).write(true).open("/dev/uinput").is_ok()
@@ -176,7 +176,7 @@ impl UinputTablet {
             product: 0x0001,
             version: 1,
         };
-        handle.create(&id, b"Quill Virtual Tablet", 0, &abs)?;
+        handle.create(&id, b"FoxLoop Virtual Tablet", 0, &abs)?;
 
         Ok(Self {
             handle,

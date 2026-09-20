@@ -1,4 +1,4 @@
-//! The Quill wire protocol, v2. Both directions, in one place.
+//! The FoxLoop wire protocol, v2. Both directions, in one place.
 //!
 //! # Why this exists as its own module
 //!
@@ -71,7 +71,7 @@
 //! ```
 
 /// `"QUIL"`. First four bytes a client ever sends; a daemon that reads anything
-/// else knows immediately it is not talking to a Quill client of any version,
+/// else knows immediately it is not talking to a FoxLoop client of any version,
 /// rather than inferring it from an implausible screen size.
 pub const MAGIC: u32 = u32::from_be_bytes(*b"QUIL");
 

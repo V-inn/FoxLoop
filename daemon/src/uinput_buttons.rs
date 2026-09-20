@@ -114,7 +114,7 @@ impl UinputButtons {
             product: 0x0003,
             version: 1,
         };
-        handle.create(&id, b"Quill Virtual Buttons", 0, &abs)?;
+        handle.create(&id, b"FoxLoop Virtual Buttons", 0, &abs)?;
 
         Ok(Self {
             handle,

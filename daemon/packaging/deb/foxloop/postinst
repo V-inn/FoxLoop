@@ -1,0 +1,32 @@
+#!/bin/sh
+# Reloads udev so 99-foxloop-daemon.rules takes effect without a reboot, and
+# tells the user the one thing about a packaged systemd *user* unit that is
+# not obvious: a package cannot reach into other users' session managers.
+set -e
+
+if [ "$1" = "configure" ]; then
+    if command -v udevadm >/dev/null 2>&1; then
+        udevadm control --reload-rules || true
+        udevadm trigger --subsystem-match=usb || true
+    fi
+
+    # Deliberately says nothing about /dev/uinput or the foxloop-uinput package:
+    # Recommends carries no ordering guarantee, so a message whose truth
+    # depends on whether that package is configured yet would print wrongly
+    # about half the time. foxloop-uinput's own postinst says what it grants.
+    cat <<'EOF'
+
+foxloop: daemon installed at /usr/bin/foxloop-daemon.
+
+Its systemd user unit is in /usr/lib/systemd/user, which a session that is
+already running does not re-scan. It will be picked up at the next login, or
+immediately if that user runs:
+
+    systemctl --user daemon-reload
+
+Then plug the tablet in. See /usr/share/doc/foxloop/README.md.
+
+EOF
+fi
+
+exit 0

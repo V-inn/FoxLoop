@@ -247,7 +247,7 @@ fn restore_token_path(cursor: CursorRendering) -> std::path::PathBuf {
         CursorRendering::Embedded => "portal_restore_token",
         CursorRendering::ClientSide => "portal_restore_token_cursor_metadata",
     };
-    std::path::Path::new(&home).join(".config/quill").join(name)
+    std::path::Path::new(&home).join(".config/foxloop").join(name)
 }
 
 /// Negotiates a ScreenCast session via the portal. First run ever (or after
@@ -406,7 +406,7 @@ struct CaptureData {
     cap_fps_30: bool,
     /// When the last frame was actually encoded, for the 30fps cap.
     last_encoded_at: Option<Instant>,
-    /// `QUILL_NO_ENCODE` -- see the early return in `process`.
+    /// `FOXLOOP_NO_ENCODE` -- see the early return in `process`.
     no_encode: bool,
     /// Whether the client draws the pointer itself. Only in `ClientSide` does
     /// the capture path forward cursor messages.
@@ -421,14 +421,14 @@ struct CaptureData {
     /// negotiation is inherently two-step (we offer a DONT_FIXATE choice, the
     /// producer picks one and sends the fixated format back), so PipeWire
     /// reports a format twice where the shm path reported it once. Confirmed by
-    /// counting the events: 1 with `QUILL_FORCE_SHM`, 2 without. Announcing the
+    /// counting the events: 1 with `FOXLOOP_FORCE_SHM`, 2 without. Announcing the
     /// video format on each of those wrote a second 8-byte header into a stream
     /// the client was already reading as length-prefixed frames, desyncing its
     /// framing permanently -- live symptom was a garbage clock offset, a
     /// `1174405120x18998372` video format, and `MediaCodec.configure` throwing
     /// `Invalid size(s)` on a reconnect loop.
     sent_format: Option<(u32, u32)>,
-    /// `None` unless `QUILL_DUMP_H264` is set -- see the write site in
+    /// `None` unless `FOXLOOP_DUMP_H264` is set -- see the write site in
     /// `process` for why this stopped being unconditional.
     out_file: Option<File>,
     // Shared with the outer main loop (see run_capture's heartbeat check)
@@ -524,7 +524,7 @@ pub fn setup_transport(
     // degrading to silently running capture-only forever: confirmed live,
     // that left the daemon "running" but functionally dead after a USB drop
     // mid-handshake, and systemd's `Restart=on-failure` (see
-    // `packaging/quill-daemon.service`) never got a chance to retry the AOA
+    // `packaging/foxloop-daemon.service`) never got a chance to retry the AOA
     // connect because the process never actually exited.
     let info = match clock_rx.recv_timeout(clock_sync_timeout) {
         Ok(info) => {
@@ -622,7 +622,7 @@ fn emit_frame(
     // Opt-in, not always-on: this was an unbuffered write() syscall per frame,
     // in the middle of the hot path, into a file that grew without bound (~50MB
     // after one session) and that nothing reads unless someone is debugging the
-    // bitstream. Same env-var convention as QUILL_DUMP_FRAME.
+    // bitstream. Same env-var convention as FOXLOOP_DUMP_FRAME.
     if let Some(f) = user_data.out_file.as_mut() {
         let _ = f.write_all(&encoded);
     }
@@ -698,8 +698,8 @@ pub fn run_capture(
     // + manual loop iteration, same shape as the old evdi_capture.rs.
     crate::set_up_sigint_handler();
 
-    let out_file = if std::env::var("QUILL_DUMP_H264").is_ok() {
-        eprintln!("[capture] QUILL_DUMP_H264 set -- writing the encoded stream to {out_path}");
+    let out_file = if std::env::var("FOXLOOP_DUMP_H264").is_ok() {
+        eprintln!("[capture] FOXLOOP_DUMP_H264 set -- writing the encoded stream to {out_path}");
         Some(File::create(out_path).expect("create output file"))
     } else {
         None
@@ -713,7 +713,7 @@ pub fn run_capture(
         quality,
         cap_fps_30,
         last_encoded_at: None,
-        no_encode: std::env::var("QUILL_NO_ENCODE").is_ok(),
+        no_encode: std::env::var("FOXLOOP_NO_ENCODE").is_ok(),
         cursor,
         last_cursor_id: None,
         sent_format: None,
@@ -724,7 +724,7 @@ pub fn run_capture(
 
     let stream = pw::stream::StreamRc::new(
         core,
-        "quill-capture",
+        "foxloop-capture",
         properties! {
             *pw::keys::MEDIA_TYPE => "Video",
             *pw::keys::MEDIA_CATEGORY => "Capture",
@@ -1024,7 +1024,7 @@ pub fn run_capture(
                 // barcode probe (the only instrument that measures the capture
                 // segment DMA-BUF is meant to shrink) goes blind here, since it
                 // reads a CPU mapping that no longer exists.
-                if std::env::var("QUILL_BARCODE_PROBE").is_ok() {
+                if std::env::var("FOXLOOP_BARCODE_PROBE").is_ok() {
                     if let Ok(Some(barcode_ns)) =
                         encoder.with_mapped_dmabuf(&plane, |b, s| decode_latency_barcode(b, s))
                     {
@@ -1056,12 +1056,12 @@ pub fn run_capture(
             // the actual captured pixels, sidestepping any X11-vs-Wayland
             // coordinate-space mismatch entirely (ground truth, not a
             // calculation). Delete once calibration is confirmed.
-            if std::env::var("QUILL_DUMP_FRAME").is_ok() {
+            if std::env::var("FOXLOOP_DUMP_FRAME").is_ok() {
                 let stats = user_data.stats.borrow();
                 if stats.frame_count == 0 {
                     let height = chunk_size / stride;
                     let width = stride / 4;
-                    if let Ok(mut f) = File::create("/tmp/quill_frame_dump.ppm") {
+                    if let Ok(mut f) = File::create("/tmp/foxloop_frame_dump.ppm") {
                         let _ = writeln!(f, "P6\n{width} {height}\n255");
                         for row in 0..height {
                             for col in 0..width {
@@ -1069,7 +1069,7 @@ pub fn run_capture(
                                 let _ = f.write_all(&[bytes[off + 2], bytes[off + 1], bytes[off]]);
                             }
                         }
-                        eprintln!("[debug] dumped frame to /tmp/quill_frame_dump.ppm ({width}x{height})");
+                        eprintln!("[debug] dumped frame to /tmp/foxloop_frame_dump.ppm ({width}x{height})");
                     }
                 }
             }
@@ -1130,11 +1130,11 @@ pub fn run_capture(
     // dmabuf allocation test fails on some other GPU/driver, the stream still
     // negotiates and the existing upload path takes over.
     //
-    // `QUILL_FORCE_SHM` drops the dmabuf offer entirely, which is how the two
+    // `FOXLOOP_FORCE_SHM` drops the dmabuf offer entirely, which is how the two
     // paths get A/B'd against each other on the same machine in the same
     // sitting -- without it there's no way to re-measure the old behavior once
     // the new one works.
-    let force_shm = std::env::var("QUILL_FORCE_SHM").is_ok();
+    let force_shm = std::env::var("FOXLOOP_FORCE_SHM").is_ok();
     let dmabuf_values = build_format_pod(true, preferred_size);
     let shm_values = build_format_pod(false, preferred_size);
     let mut dmabuf_first = vec![
@@ -1143,7 +1143,7 @@ pub fn run_capture(
     ];
     let mut shm_only = vec![Pod::from_bytes(&shm_values).unwrap()];
     let params: &mut [&Pod] = if force_shm {
-        eprintln!("[pipewire] QUILL_FORCE_SHM set -- offering shared memory only");
+        eprintln!("[pipewire] FOXLOOP_FORCE_SHM set -- offering shared memory only");
         &mut shm_only
     } else {
         &mut dmabuf_first

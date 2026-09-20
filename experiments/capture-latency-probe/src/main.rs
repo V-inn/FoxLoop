@@ -31,11 +31,11 @@ fn main() {
     opts.topmost = true;
 
     let mut window =
-        Window::new("Quill Latency Probe", WIDTH, HEIGHT, opts).expect("failed to open window");
+        Window::new("FoxLoop Latency Probe", WIDTH, HEIGHT, opts).expect("failed to open window");
 
     // Positioned at the virtual monitor's top-left corner within the
     // combined desktop layout -- adjust if `kscreen-doctor -o` reports a
-    // different geometry for Virtual-QuillTest on your setup.
+    // different geometry for Virtual-FoxLoopTest on your setup.
     window.set_position(1536, 0);
     window.set_target_fps(240);
 

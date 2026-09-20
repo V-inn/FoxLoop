@@ -2,7 +2,7 @@
 <!--
     Debug-only additions.
 
-    The adb-forward transport (`quill 7777`, Milestones 3-7) listens on a TCP
+    The adb-forward transport (`foxloop 7777`, Milestones 3-7) listens on a TCP
     socket, so it needs INTERNET. It is a development path: the shipped
     transport is AOA over raw USB, which needs no permission at all, so the
     permission is declared here rather than in the main manifest and never

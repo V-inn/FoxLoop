@@ -36,7 +36,7 @@ use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
 /// Matches the name already in manual use on this machine.
-const OUTPUT_NAME: &str = "QuillDisplay";
+const OUTPUT_NAME: &str = "FoxLoopDisplay";
 const RFB_PORT: u16 = 5900;
 
 const POLL_INTERVAL: Duration = Duration::from_millis(200);

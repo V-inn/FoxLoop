@@ -3,7 +3,7 @@
 #
 # What this workflow deliberately does NOT do: build the Android app. The
 # release signing key is not in CI and must not be -- losing it means never
-# again shipping an update that installs over an existing Quill, and a key that
+# again shipping an update that installs over an existing FoxLoop, and a key that
 # lives in a secrets store is a key that can leak from one. The APK is built and
 # signed on the developer's machine and attached to the release by hand.
 #
@@ -20,7 +20,7 @@
 # glibc symbol-version requirement at all, so the rpm *installs* happily on RHEL
 # 9 or an older Fedora and then the daemon dies at exec with a missing GLIBC
 # symbol. The rpm is therefore supported on current Fedora only. Building it on
-# an older baseline would widen that, and QUILL_RPM_IMAGE in
+# an older baseline would widen that, and FOXLOOP_RPM_IMAGE in
 # packaging/build-packages.sh is how to try one.
 
 name: Release
@@ -73,12 +73,12 @@ jobs:
         env:
           # The checkout is not at /src here, which is the only thing that
           # differs from a local run.
-          QUILL_SRC: ${{ github.workspace }}
+          FOXLOOP_SRC: ${{ github.workspace }}
         run: bash daemon/packaging/build-in-container.sh ${{ matrix.format }}
 
       - uses: actions/upload-artifact@v4
         with:
-          name: quill-${{ matrix.format }}
+          name: foxloop-${{ matrix.format }}
           path: ${{ matrix.artifacts }}/*.${{ matrix.format }}
           if-no-files-found: error
 

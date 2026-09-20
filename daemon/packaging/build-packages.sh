@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds quill's .deb and .rpm packages, each inside a container.
+# Builds foxloop's .deb and .rpm packages, each inside a container.
 #
 #     ./packaging/build-packages.sh            # both formats
 #     ./packaging/build-packages.sh deb        # one of them
@@ -25,8 +25,8 @@ repo_root=$(cd .. && pwd)
 # cargo-generate-rpm's builtin auto-req records soname requires with no glibc
 # symbol-version requirement, so an rpm built here installs cleanly on RHEL 9 or
 # an older Fedora and only then fails at exec. The rpm is current-Fedora-only.
-DEB_IMAGE=${QUILL_DEB_IMAGE:-debian:12}
-RPM_IMAGE=${QUILL_RPM_IMAGE:-fedora:latest}
+DEB_IMAGE=${FOXLOOP_DEB_IMAGE:-debian:12}
+RPM_IMAGE=${FOXLOOP_RPM_IMAGE:-fedora:latest}
 
 formats=()
 clean=0
