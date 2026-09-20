@@ -48,7 +48,8 @@
       <div class="prose">
 
         <h2>The tablet app</h2>
-        <p>A released build of the Android app requests <strong>no permissions at all</strong>. Not location, not storage, not network. Its manifest declares one hardware feature — that the device can act as a USB accessory — and no permissions follow it.</p>
+        <p>A released build of the Android app asks you for <strong>nothing</strong>. No location, no storage, no camera, no network, no contacts. Android never shows it a permission prompt, because it never requests a permission that has one.</p>
+        <p>One entry does appear if you inspect the built package, and it is worth naming rather than leaving you to find it and wonder. The app declares a permission belonging to itself, ending <code>DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION</code>, and then requests that same permission. It is added automatically by an Android support library to keep one of the app's internal messages from being readable by other apps, and it is marked <code>signature</code>, which means only software signed with the same key as FoxLoop could ever hold it. It grants no access to your device or your data, and it does not appear in the app's permission list in Android's settings.</p>
         <p>It has no internet access, because it was never granted any. Development builds add the <code>INTERNET</code> permission so a developer can run the connection over a debugging bridge instead of a cable; that permission lives in a separate, debug-only manifest and is not present in anything released.</p>
         <p>There is no account, no sign-in, no analytics library, no crash reporter and no advertising identifier.</p>
 
