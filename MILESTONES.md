@@ -3543,12 +3543,44 @@ rename.** `git grep -F` over the result is what finds them; note that plain
 - **The deb and rpm packages were not rebuilt.** Their names, paths and
   maintainer scripts were renamed by the same pass and are unexercised; the
   container build in Milestone 27 is what would prove them.
-- **The udev rules were renamed but never installed system-wide.**
-  `/etc/udev/rules.d/` still holds `99-quill-daemon.rules`; the daemon was
-  started by hand for all of the above. Auto-launch on attach under the new rule
-  filename has not fired once, and the old rule still points at a unit name that
-  no longer exists — so **auto-launch is currently broken on this machine** until
-  the `sudo cp` in `install.sh`'s output is run.
 - **Pen pressure and tilt were not exercised.** The handshake advertises
   `pressure 0..4095`, but nothing drew on the tablet; `adb` cannot press the
   S Pen.
+
+### Auto-launch, and a test that proved nothing the first time
+
+`99-foxloop-daemon.rules` was installed over the old one and **auto-launch
+verified end to end**: with the unit `inactive` and `NRestarts=0`, a physical
+replug started it on its own, and it went on to stream at `latency avg=26ms`
+beside `round-trip sum=1ms`. The USB accessory permission survived the replug,
+so no re-grant was needed.
+
+Getting there took two attempts, and the first one is the part worth recording.
+
+**A replug while the daemon is already running tests nothing.** Unplugging kills
+the AOA transport, the daemon exits `status=1/FAILURE`, and `Restart=on-failure`
+starts it again ~2s later — which then picks up the device when it returns. The
+unit ends up `active` with a fresh `ActiveEnterTimestamp` and the stream comes
+back, and none of that involved udev. The tell is in the journal:
+
+    foxloop-daemon.service: Main process exited, code=exited, status=1/FAILURE
+    foxloop-daemon.service: Scheduled restart job, restart counter is at 1.
+
+**`Scheduled restart job` means systemd did it, not the udev rule.** A real test
+needs `systemctl --user stop` plus `reset-failed` first, so that `NRestarts=0`
+and an `active` unit has only one possible cause.
+
+Second trap, in the same area: **while the tablet sits in accessory mode it
+presents as `18d1:2d01`, not Samsung `04e8`.** The rule matches `04e8`, which the
+device only shows on the *initial* attach, before the daemon switches it. So
+`udevadm trigger` cannot reproduce an attach and no amount of poking from the
+session substitutes for pulling the cable.
+
+Also settled here, since it comes up every time: `60-…-uinput.rules` must sort
+**below 73** because `73-seat-late.rules` consumes its `TAG+="uaccess"`, while
+`99-…-daemon.rules` uses `ENV{SYSTEMD_USER_WANTS}` + `TAG+="systemd"`, which
+systemd-udevd reads after all rule processing ends — so 99 is correct and the
+numbering rule simply does not apply to it. The 60 rule is moot on this machine
+anyway: `/dev/uinput` already carries a `user:vini:rw-` ACL granted by
+`60-steam-input.rules`, which is what `install.sh` detects when it says there is
+nothing to do for input.
