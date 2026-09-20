@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>FoxLoop privacy</title>
+<meta name="description" content="FoxLoop collects nothing. The Android app requests no permissions, has no network access, and nothing leaves your machine.">
+<link rel="icon" href="assets/mark.svg" type="image/svg+xml">
+<link rel="canonical" href="https://v-inn.github.io/FoxLoop/privacy.html">
+<meta property="og:type" content="article">
+<meta property="og:title" content="FoxLoop privacy">
+<meta property="og:description" content="FoxLoop collects nothing. No accounts, no analytics, no network beyond the cable.">
+<meta property="og:url" content="https://v-inn.github.io/FoxLoop/privacy.html">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@125,600&family=IBM+Plex+Mono&family=IBM+Plex+Sans:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="masthead">
+  <div class="wrap masthead__inner">
+    <a class="brand" href="index.html">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M27 13.5 V20 A7 7 0 0 1 20 27 H12 A7 7 0 0 1 5 20 V12 A7 7 0 0 1 12 5 H18.5 C25 5 30 10 24.5 14.5" fill="none" stroke="#F97316" stroke-width="4.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      FoxLoop
+    </a>
+    <nav class="nav">
+      <a href="index.html#how">How it works</a>
+      <a href="install.html">Install</a>
+      <a href="https://github.com/V-inn/FoxLoop">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+
+  <section class="section">
+    <div class="wrap">
+      <h1>Privacy</h1>
+      <p class="lede">FoxLoop collects nothing, sends nothing, and stores nothing about you. This page exists to say so precisely, and to point at the lines you can check it against.</p>
+    </div>
+  </section>
+
+  <section class="section rule-top" style="padding-top:clamp(36px,5vw,60px)">
+    <div class="wrap">
+      <div class="prose">
+
+        <h2>The tablet app</h2>
+        <p>A released build of the Android app requests <strong>no permissions at all</strong>. Not location, not storage, not network. Its manifest declares one hardware feature — that the device can act as a USB accessory — and no permissions follow it.</p>
+        <p>It has no internet access, because it was never granted any. Development builds add the <code>INTERNET</code> permission so a developer can run the connection over a debugging bridge instead of a cable; that permission lives in a separate, debug-only manifest and is not present in anything released.</p>
+        <p>There is no account, no sign-in, no analytics library, no crash reporter and no advertising identifier.</p>
+
+        <h2>The daemon</h2>
+        <p>The Linux daemon opens no network sockets in its normal mode. It talks to the tablet over the USB cable, and nowhere else. It writes no telemetry and phones nothing home.</p>
+        <p>It does have a development mode that listens on a TCP port for a debugging bridge. That listener is bound to the loopback interface, so it is reachable only from the machine it runs on, and it is started only when you pass a port on the command line yourself.</p>
+
+        <h2>What travels over the cable</h2>
+        <p>Video of the virtual monitor you put on the tablet, and the pen and touch positions coming back. Both directions exist only for as long as the cable is connected, are never written to disk, and never leave the two devices in your hands.</p>
+
+        <h2>What is stored</h2>
+        <p>Your settings — rotation, desktop size, picture quality, which button the pen's side key presses — are saved on the tablet, in the app's own private storage. They are readable by nothing but the app, and they go away when you uninstall it.</p>
+
+        <h2>Checking any of this</h2>
+        <p>FoxLoop is MIT licensed and the whole of it is public. The manifest that declares the app's permissions is <a href="https://github.com/V-inn/FoxLoop/blob/main/android-client/app/src/main/AndroidManifest.xml">one short file</a>, and the debug-only manifest that adds <code>INTERNET</code> is <a href="https://github.com/V-inn/FoxLoop/blob/main/android-client/app/src/debug/AndroidManifest.xml">beside it</a>. You do not have to take this page's word for any of it.</p>
+
+        <h2>Changes</h2>
+        <p>If FoxLoop ever collects anything, this page will say what and why before that release ships. Its history is in the repository, so you can see whether it has changed.</p>
+
+        <p style="color:var(--muted);font-size:.95rem;margin-top:2.4em">Questions: <a href="https://github.com/V-inn/FoxLoop/issues">open an issue</a>.</p>
+
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="colophon">
+  <div class="wrap colophon__inner">
+    <p style="margin:0">MIT licensed. Built by Vinicius Flesch Kern.</p>
+    <ul>
+      <li><a href="index.html">Home</a></li>
+      <li><a href="install.html">Install</a></li>
+      <li><a href="https://github.com/V-inn/FoxLoop">Source</a></li>
+      <li><a href="https://github.com/V-inn/FoxLoop/blob/main/MILESTONES.md">Milestones</a></li>
+    </ul>
+  </div>
+</footer>
+
+</body>
+</html>

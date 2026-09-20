@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Install FoxLoop</title>
+<meta name="description" content="How to install FoxLoop: packages for Debian, Ubuntu and Fedora, building from source, the tablet app, and what to do when it doesn't work.">
+<link rel="icon" href="assets/mark.svg" type="image/svg+xml">
+<link rel="canonical" href="https://v-inn.github.io/FoxLoop/install.html">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Install FoxLoop">
+<meta property="og:description" content="Packages for Debian, Ubuntu and Fedora, building from source, the tablet app, and a troubleshooting table.">
+<meta property="og:url" content="https://v-inn.github.io/FoxLoop/install.html">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@125,600&family=IBM+Plex+Mono&family=IBM+Plex+Sans:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="masthead">
+  <div class="wrap masthead__inner">
+    <a class="brand" href="index.html">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M27 13.5 V20 A7 7 0 0 1 20 27 H12 A7 7 0 0 1 5 20 V12 A7 7 0 0 1 12 5 H18.5 C25 5 30 10 24.5 14.5" fill="none" stroke="#F97316" stroke-width="4.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      FoxLoop
+    </a>
+    <nav class="nav">
+      <a href="index.html#how">How it works</a>
+      <a href="install.html" aria-current="page">Install</a>
+      <a href="https://github.com/V-inn/FoxLoop">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+
+  <section class="section">
+    <div class="wrap">
+      <h1>Install FoxLoop</h1>
+      <p class="lede">Two halves and a cable: a daemon on your computer, an app on the tablet. On Debian, Ubuntu or Fedora the daemon is two packages and needs no build toolchain.</p>
+    </div>
+  </section>
+
+  <section class="section section--band rule-top" style="padding-top:clamp(40px,6vw,72px)">
+    <div class="wrap">
+      <h2>Check these three first</h2>
+      <div class="needs">
+        <div>
+          <h3>A tablet with an S Pen</h3>
+          <p>Samsung Galaxy Tab S9 FE or newer, S10 FE or newer — anything with a Wacom EMR S Pen. Plus the pen and a USB cable that carries data, not only charge.</p>
+        </div>
+        <div>
+          <h3>KDE Plasma or GNOME</h3>
+          <p>On Wayland. Nothing else is supported. On KDE you also need <code>krfb</code>, which provides the tool that creates the virtual monitor; on GNOME you need nothing extra.</p>
+        </div>
+        <div>
+          <h3>A GPU that encodes H.264</h3>
+          <p>Through VAAPI — Intel or AMD. NVIDIA does not work this way, and there is no software fallback.</p>
+          <pre class="code"><code>vainfo | grep -E 'VAProfileH264.*EncSlice'</code></pre>
+          <p>If that prints nothing, stop here — FoxLoop will not run.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <h2>Install it</h2>
+      <ol class="steps" style="margin-top:clamp(30px,4vw,46px)">
+
+        <li>
+          <h3>Install the daemon</h3>
+          <div class="prose">
+            <p>Download the two files for your distribution from the <a href="https://github.com/V-inn/FoxLoop/releases/latest">latest release</a>, then:</p>
+            <pre class="code"><code><b># Debian / Ubuntu</b>
+sudo apt install ./foxloop_*.deb ./foxloop-uinput_*.deb
+
+<b># Fedora — the [0-9] keeps foxloop-* from also matching foxloop-uinput</b>
+sudo dnf install ./foxloop-[0-9]*.rpm ./foxloop-uinput-*.rpm</code></pre>
+            <p>On KDE, add <code>krfb</code> as well: <code>sudo apt install krfb</code> or <code>sudo dnf install krfb</code>.</p>
+            <p>No package for your distribution? <a href="https://github.com/V-inn/FoxLoop/blob/main/daemon/README.md#build">Build from source</a> — it is a Rust build with a handful of development headers, and takes about a minute.</p>
+          </div>
+        </li>
+
+        <li>
+          <h3>Log out and back in</h3>
+          <div class="prose">
+            <p>This step is not optional and not cosmetic. The pen permission is an access-control entry attached to your session when it becomes active, so it never reaches the session that was already running when you installed it. Skip this and the pen will report position and clicks but no pressure.</p>
+          </div>
+        </li>
+
+        <li>
+          <h3>Put the app on the tablet</h3>
+          <div class="prose">
+            <p>There is no store listing yet, so the app is built from the repository:</p>
+            <pre class="code"><code>cd android-client
+echo "sdk.dir=$HOME/Android/Sdk" &gt; local.properties
+./gradlew assembleDebug
+adb install -r app/build/outputs/apk/debug/app-debug.apk</code></pre>
+          </div>
+        </li>
+
+        <li>
+          <h3>Plug it in</h3>
+          <div class="prose">
+            <p>Connect the cable and <strong>unlock the tablet</strong> — Android will not hand the connection to an app while the screen is locked. The app opens on its own; there is nothing to launch.</p>
+            <p>On KDE the first run shows your desktop's screen-picker dialog once. Choose <code>Virtual-FoxLoopDisplay</code>. The answer is remembered, so it never asks again. On GNOME there is no dialog.</p>
+            <p>Then drag a window onto the tablet.</p>
+          </div>
+        </li>
+
+      </ol>
+    </div>
+  </section>
+
+  <section class="section section--band">
+    <div class="wrap">
+      <h2>About the one step that needs root</h2>
+      <div class="prose">
+        <p>Everything FoxLoop adds to a shared machine is in one package, <code>foxloop-uinput</code>, and that package is a single udev rule. It tags <code>/dev/uinput</code> so that the user holding the active local session gets access to it — which is what lets the daemon create a virtual pen that can report pressure and tilt.</p>
+        <p>It grants nothing to someone connected over SSH, nothing to a logged-out or inactive user, and nothing to a system service. It is byte-for-byte the rule Steam ships, so on a machine with Steam installed it changes nothing at all. The alternatives it was chosen over — a world-writable device, or adding you to a group that can read every keyboard on the machine — would both have granted far more.</p>
+        <p>You can decline it. The cost is that the pen falls back to a portal interface carrying no pressure and no tilt, which is most of the point. On a lab or shared machine that tradeoff is genuinely yours to make; <a href="https://github.com/V-inn/FoxLoop/blob/main/daemon/README.md#multi-user-and-managed-machines">the daemon README spells out how</a>.</p>
+        <p>Nothing else in FoxLoop runs as root. It installs no setuid binary, adds no user or group, and starts nothing at boot.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <h2>When it doesn't work</h2>
+      <div class="prose">
+        <p>Start with the log. The daemon narrates every stage, tagged by subsystem:</p>
+        <pre class="code"><code>journalctl --user -u foxloop-daemon -f   <b># if udev started it</b>
+foxloop                                  <b># or run it in a terminal</b></code></pre>
+      </div>
+
+      <div class="table-scroll" style="margin-top:clamp(26px,3vw,38px)">
+        <table>
+          <thead>
+            <tr><th scope="col">What you see</th><th scope="col">What it means</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>failed to open /dev/dri/renderD128</code></td>
+              <td>Your user cannot reach the GPU. Add yourself to the <code>render</code> group and log back in. If the node does not exist at all, there is no VAAPI-capable GPU.</td>
+            </tr>
+            <tr>
+              <td>The pen does nothing, and the log says <code>/dev/uinput not accessible</code></td>
+              <td>The uinput rule is not installed, or you have not logged out and back in since. On KDE the daemon falls back to position and clicks only; on GNOME it exits and tells you the fix.</td>
+            </tr>
+            <tr>
+              <td>No virtual monitor appears, on KDE</td>
+              <td><code>krfb</code> is not installed, so the tool that creates the monitor is missing. The log says <code>failed to spawn</code>.</td>
+            </tr>
+            <tr>
+              <td>The picker dialog appears every launch</td>
+              <td>The saved answer was revoked. Pick the monitor once more. If it keeps happening, check that a second daemon is not running — the log says so plainly.</td>
+            </tr>
+            <tr>
+              <td>Nothing happens when you plug in</td>
+              <td>The udev rule is not installed, or your session is not the active one. Run <code>udevadm monitor</code> while plugging in to see whether the rule fires.</td>
+            </tr>
+            <tr>
+              <td><code>AOA connect failed</code></td>
+              <td>The tablet is locked, the app is not installed, or the cable is charge-only. Unlock the tablet first — Android will not route the connection to a locked device.</td>
+            </tr>
+            <tr>
+              <td>A frozen or black screen after replugging</td>
+              <td>Stale USB data survived the reconnect. The daemon recovers on its own now; if it does not, run it once as <code>FOXLOOP_USB_RESET=1 foxloop</code>.</td>
+            </tr>
+            <tr>
+              <td>The tablet mirrors your main display instead of extending it</td>
+              <td>Known, on KDE. Switch it to <em>Extend</em> in System Settings → Display.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="prose">
+        <p><a href="https://github.com/V-inn/FoxLoop/blob/main/daemon/README.md">The daemon README</a> carries the full detail: every environment variable, the layout of the source, and what each log tag covers.</p>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="colophon">
+  <div class="wrap colophon__inner">
+    <p style="margin:0">MIT licensed. Built by Vinicius Flesch Kern.</p>
+    <ul>
+      <li><a href="index.html">Home</a></li>
+      <li><a href="https://github.com/V-inn/FoxLoop">Source</a></li>
+      <li><a href="https://github.com/V-inn/FoxLoop/blob/main/MILESTONES.md">Milestones</a></li>
+      <li><a href="privacy.html">Privacy</a></li>
+    </ul>
+  </div>
+</footer>
+
+</body>
+</html>

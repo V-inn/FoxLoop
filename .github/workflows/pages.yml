@@ -1,0 +1,112 @@
+# Publishes the hand-written site under site/ to https://v-inn.github.io/FoxLoop/.
+#
+# PREREQUISITE, once, by hand. This repository's Pages site was created in
+# "legacy" mode -- GitHub builds the repo root with Jekyll on every push to
+# main, which is why the README was the site before this workflow existed. A
+# workflow cannot change that for itself, and actions/configure-pages, which
+# looks like the thing that would, cannot either: it enables Pages by calling
+# createPagesSite, which is a POST that fails with 409 when a site already
+# exists. The action swallows that 409 and makes no further call, so an existing
+# legacy site keeps its build_type. Its `enablement` input also requires a token
+# that is explicitly not GITHUB_TOKEN. The switch is one call, run by a repo
+# admin:
+#
+#     gh api -X PUT repos/V-inn/FoxLoop/pages -f build_type=workflow
+#
+# or Settings -> Pages -> Build and deployment -> Source -> "GitHub Actions".
+#
+# Until that is done, this workflow packages the site correctly and then fails
+# on the last step with "Failed to create deployment (status: 404) ... Ensure
+# GitHub Pages has been enabled" -- which is misleading, because Pages *is*
+# enabled, just in the wrong mode. That failure is harmless: the legacy builder
+# keeps serving until the flip, so pushing this before flipping is the safe
+# order, not the reckless one.
+#
+# What this workflow deliberately does NOT do: build anything. site/ is static
+# HTML, CSS and media, served exactly as committed -- no npm, no bundler, no
+# Jekyll. A Pages site whose source is a workflow serves the uploaded artifact
+# verbatim, so there is no build step to skip and no .nojekyll file to add.
+# There could not be one anyway: upload-pages-artifact has excluded dotfiles
+# from the tarball since v4 unless include-hidden-files is set. That GitHub's
+# own action ships that as the default is the proof .nojekyll is unnecessary
+# here.
+#
+# It also deliberately does NOT use actions/configure-pages, which every starter
+# workflow includes. Its outputs are the site's base URL and base path, which
+# exist so a static site generator can rewrite its own links; nothing here
+# generates links, and site/ uses document-relative paths that work unchanged
+# under the /FoxLoop/ prefix. It is not the pre-flight check it appears to be,
+# either: it reads the Pages site happily whether the build type is legacy or
+# workflow, so it would pass on exactly the misconfiguration described above.
+#
+# Build and deploy are separate jobs so that only the deploy job holds
+# id-token: write. That permission mints an OIDC token asserting which ref is
+# deploying; the job that tars up working-tree content has no business being
+# able to request one.
+
+name: Pages
+
+on:
+  push:
+    branches:
+      - main
+    # The site depends on nothing outside site/, and most commits to this
+    # repository touch only MILESTONES.md. Without this filter every one of them
+    # would publish a byte-identical artifact and add another entry to the
+    # environment's deployment history, making that history useless for
+    # answering "when did the site last actually change?"
+    paths:
+      - "site/**"
+      - ".github/workflows/pages.yml"
+  # paths filters do not apply to workflow_dispatch, so this is also how to
+  # force a redeploy when nothing under site/ changed -- notably the first one,
+  # right after the build type is flipped by hand.
+  workflow_dispatch:
+
+# Pages deployments are serialised repository-wide, not per-ref: two runs
+# finishing out of order would leave the older one live. cancel-in-progress
+# stays false because killing a deployment mid-flight leaves the site on
+# whichever version happened to be half-applied.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Package site
+    runs-on: ubuntu-latest
+    # This repository's default workflow token is read-only, so every job states
+    # what it needs -- the same reason release.yml spells out `contents: write`.
+    permissions:
+      contents: read
+    steps:
+      # Pinned to v4 to match release.yml rather than to the newest tag; two
+      # workflows disagreeing about which checkout they use is worse than both
+      # being a version behind. Bump them together when you bump them.
+      - uses: actions/checkout@v4
+
+      # Tars site/ and uploads it under the artifact name `github-pages`, the
+      # only name deploy-pages looks for. The tarball's root becomes the site
+      # root, so site/index.html is served at the top of the site and not at
+      # /FoxLoop/site/.
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: site
+
+  deploy:
+    name: Deploy to Pages
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write # create the deployment
+      id-token: write # prove to Pages which ref created it
+    # The github-pages environment already exists, left behind by the legacy
+    # builds, with a deployment-branch policy allowing only main. Naming it here
+    # is what satisfies that policy; the url is what puts the deployed link on
+    # the run summary.
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5
