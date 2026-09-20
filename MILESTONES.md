@@ -3494,18 +3494,61 @@ spawning /usr/bin/quill-daemon` line in Milestone 27. They match what the code
 prints today, not what was observed then. Nothing else in the file is a
 transcript.
 
+### Verified on the tablet, after the fact
+
+The section below originally opened "Nothing was run on the tablet." That is no
+longer true — the tablet was connected later in the same session and the whole
+pipeline exercised end to end on the renamed build.
+
+- **The AOA handshake works under the new `MANUFACTURER`/`MODEL` pair**, which
+  was the one claim that could not be reasoned about safely. The release APK was
+  installed, `com.quill.client` uninstalled, and the daemon reached
+  `Virtual-FoxLoopDisplay 2560x1600`, with the client logging
+  `handshake: asking for 2560x1600px ... pressure 0..4095 ... (stylus device: sec_e-pen)`.
+  A tablet screenshot shows the full Plasma desktop streaming.
+- **Latency is unchanged**: `avg=14ms min=10ms max=44ms` over 30 frames beside
+  `round-trip sum=1ms`, against a documented steady state of ~27ms.
+  The first two readings this session were **not** that, and are worth recording
+  because they are Milestone 19 repeating itself: a reconnect after `wake` gave
+  `round-trip sum=1579ms` / `latency avg=805ms`, which the driver refused to
+  endorse (`trustworthy=false`). One `restart` and it was 1ms / 14ms. Reading the
+  first number as a rename regression would have been the false alarm Milestone
+  19 exists to prevent.
+- **`isolate` passes**: `idle noise floor 0 px`, `after gear drag 0 px`.
+  `GearButton`'s swallow contract survived the rename.
+- **The R8-minified release variant is what was installed and run**, not a debug
+  build, so minification is covered on hardware too.
+
+One rename bug was found this way and only this way. `driver.mjs` matched the
+focused activity with a *regex*, `/com\.quill\.client\/[\w.]+/` — escaped dots.
+The literal-string rule in the rename pass does not match `com\.quill\.client`,
+so the general `quill` → `foxloop` rule caught it instead and produced
+`com\.foxloop\.client`: a package that has never existed. It failed silently, as
+`focus (app not foreground)` while 120 frames were demonstrably rendering.
+**Escaped-dot forms of a renamed identifier are invisible to a literal-string
+rename.** `git grep -F` over the result is what finds them; note that plain
+`grep -r .` skipped the hidden `.claude/` directory here and reported clean.
+
 ### Not verified
 
-- **Nothing was run on the tablet.** The daemon builds and its 78 tests pass;
-  the Android client builds in both variants and its unit tests pass; the
-  release APK's certificate was checked. No renamed build has held a USB
-  session, so the AOA handshake under the new `MANUFACTURER`/`MODEL` pair is
-  reasoned, not observed.
-- **The uninstall/reinstall path has not been walked.** The claim that the old
-  app cannot be updated in place is how Android is documented to behave, not
-  something this commit demonstrated.
+- **The uninstall/reinstall path was walked, but not the claim behind it.** The
+  old app was uninstalled and the new one installed side by side, confirming
+  they are distinct packages; no attempt was made to install the new APK *over*
+  the old one, so "cannot be updated in place" is still Android's documented
+  behaviour rather than something observed.
+- **The old app's settings were lost and could not be read.** The installed
+  build was the release variant, so `run-as` refused
+  (`package not debuggable: com.quill.client`). Gear position and preferences
+  reset to defaults.
 - **The deb and rpm packages were not rebuilt.** Their names, paths and
   maintainer scripts were renamed by the same pass and are unexercised; the
   container build in Milestone 27 is what would prove them.
-- **The udev rules were renamed but not reinstalled system-wide here**, so no
-  replug has confirmed auto-launch still fires under the new rule filename.
+- **The udev rules were renamed but never installed system-wide.**
+  `/etc/udev/rules.d/` still holds `99-quill-daemon.rules`; the daemon was
+  started by hand for all of the above. Auto-launch on attach under the new rule
+  filename has not fired once, and the old rule still points at a unit name that
+  no longer exists — so **auto-launch is currently broken on this machine** until
+  the `sudo cp` in `install.sh`'s output is run.
+- **Pen pressure and tilt were not exercised.** The handshake advertises
+  `pressure 0..4095`, but nothing drew on the tablet; `adb` cannot press the
+  S Pen.
