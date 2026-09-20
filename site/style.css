@@ -85,7 +85,7 @@ h3 {
 }
 
 h1 {
-  font-size: clamp(2.2rem, 4.4vw, 3.5rem);
+  font-size: clamp(2.1rem, 3.9vw, 3.15rem);
 }
 
 h2 {
@@ -241,24 +241,19 @@ kbd {
 
 /* ---- hero ----------------------------------------------------------- */
 
-/*
-  The video runs off the right edge of the viewport on purpose: the footage is
-  a photograph of a real desk, and letting it leave the page says it continues
-  past the screen. The left rounding is the only rounding it gets, for the same
-  reason -- a corner it never reaches is a corner it should not have.
-*/
 .hero {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   align-items: center;
   gap: clamp(28px, 4.5vw, 60px);
-  padding-left: max(var(--gutter), calc((100vw - var(--page)) / 2 + var(--gutter)));
+  max-width: var(--page);
+  margin-inline: auto;
+  padding-inline: var(--gutter);
   padding-block: clamp(44px, 7vw, 88px);
 }
 
 .hero h1 {
   margin-bottom: 0.5em;
-  max-width: 15ch;
 }
 
 .hero .lede {
@@ -266,7 +261,7 @@ kbd {
 }
 
 .hero__well {
-  border-radius: 16px 0 0 16px;
+  border-radius: 16px;
 }
 
 .actions {
@@ -664,17 +659,10 @@ td code {
 @media (max-width: 899px) {
   .hero {
     grid-template-columns: 1fr;
-    padding-left: 0;
-    padding-right: 0;
   }
 
-  .hero__text {
+  .hero h1 {
     max-width: none;
-    padding-inline: var(--gutter);
-  }
-
-  .hero__well {
-    border-radius: 0;
   }
 }
 
