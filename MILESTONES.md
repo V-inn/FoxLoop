@@ -3687,15 +3687,27 @@ per-device settings.** Neither `git grep` nor a sweep of the repository can see
 this; the evidence lives in `~/.config`. After renaming such a name, grep
 `~/.config` and `~/.local/share` for the old one.
 
+### Confirmed working
+
+Both halves were fixed and confirmed by drawing on the tablet: **the pen lands
+where it is pointed, and pressure varies the brush.** The GIMP migration ran
+after GIMP was closed, renaming 12 entries with no old ones left and preserving
+`(dynamics "Pressure Size")` intact; the KWin mapping reads
+`Virtual-FoxLoopDisplay` live.
+
+This retires the oldest "not verified" line in this file. Pen pressure had been
+listed as unexercised since Milestone 26 because `adb` cannot press an S Pen —
+it took a person drawing, which is exactly why the item survived so many
+sessions that checked everything else.
+
 ### Not verified
 
-- **Nothing has been drawn with the pen since the fix.** The mapping was
-  confirmed by injecting a touch with `adb` and seeing it land on the FoxLoop
-  output rather than the laptop; whether pressure now varies brush width in
-  GIMP needs a person and the staged migration run first.
-- **Mapping alignment was not measured precisely.** The injected touch at 25%
-  across the tablet produced a menu at roughly 21% across the output, which is
-  within menu-placement slop but was not verified against a known coordinate.
-- **The GIMP migration has not been run**, because GIMP was open throughout.
+- **Mapping alignment was not measured against a known coordinate.** The pen
+  lands where the user points it, which is the claim that matters, but no
+  injected touch was checked against an expected pixel — an alignment error
+  small enough to feel right and still be wrong would not have been caught.
+- **The eraser was not tested.** `FoxLoop Virtual Tablet (Eraser)` was migrated
+  by the same pass and nothing has flipped the S Pen to eraser mode since.
 - **Only KDE/KWin was examined.** Whether GNOME keys tablet mapping the same way
   is unknown, and Milestone 10's "implemented, not live-tested" still stands.
+- **The deb and rpm packages still have not been rebuilt** since the rename.
