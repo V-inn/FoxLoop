@@ -67,6 +67,37 @@ android {
         versionName = "0.2.0"
     }
 
+    // Two products from one tree: FoxLoop, the drawing display, and FoxLoop
+    // Console, a terminal for a headless machine over the same AOA cable.
+    //
+    // Flavors and not a branch, for one concrete reason: the console's web
+    // dashboards need INTERNET, and the display's release manifest deliberately
+    // asks for nothing. A flavor gives each its own manifest while the
+    // transport code stays one copy in src/main.
+    //
+    // Two application IDs, so both install side by side. Android routes each
+    // accessory to the app whose accessory_filter.xml matches the model string
+    // the daemon sent, so the two never compete for a cable.
+    //
+    // `display` keeps the applicationId FoxLoop has always shipped under. That
+    // is not a default to tidy: an update only installs over an existing copy
+    // with the same ID *and* signing key.
+    flavorDimensions += "product"
+    productFlavors {
+        create("display") {
+            dimension = "product"
+            manifestPlaceholders["appLabel"] = "FoxLoop"
+        }
+        create("console") {
+            dimension = "product"
+            applicationIdSuffix = ".console"
+            manifestPlaceholders["appLabel"] = "FoxLoop Console"
+            // The SSH stack needs R8 rules the display has no use for; see the
+            // file. Applies to minified (release) builds only.
+            proguardFiles("proguard-console.pro")
+        }
+    }
+
     signingConfigs {
         if (canSignRelease) {
             create("release") {
@@ -81,7 +112,7 @@ android {
     buildTypes {
         release {
             // Null when the key isn't configured; the build then produces
-            // app-release-unsigned.apk, which is the honest outcome.
+            // app-<flavor>-release-unsigned.apk, which is the honest outcome.
             signingConfig = signingConfigs.findByName("release")
             // Compose ships its own R8 rules, so nothing has to be authored
             // here -- but it has to actually run, or the Compose runtime is
@@ -102,6 +133,22 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+    }
+}
+
+// Packaging exclusions for the console only, applied per variant so the
+// display's APK keeps every file it has always shipped.
+androidComponents {
+    onVariants { variant ->
+        if (variant.flavorName != "console") return@onVariants
+        // Termux's terminal-emulator carries libtermux.so, which only its
+        // TerminalSession uses -- to fork a local shell. The console never
+        // touches that class (its shell is at the other end of an SSH channel),
+        // so the library is four ABIs of dead weight.
+        variant.packaging.jniLibs.excludes.add("**/libtermux.so")
+        // OSGi bundle metadata that BouncyCastle's three jars and jspecify each
+        // carry at the same path, which fails the merge. Meaningless on Android.
+        variant.packaging.resources.excludes.add("META-INF/versions/9/OSGI-INF/MANIFEST.MF")
     }
 }
 
@@ -151,6 +198,25 @@ dependencies {
     // logic worth testing was made reachable without Android precisely so this
     // stayed true -- see PanelGeometry.
     testImplementation("junit:junit:4.13.2")
+
+    // FoxLoop Console only. Neither reaches the display's APK.
+    //
+    // sshj speaks SSH straight over the accessory streams (`connectVia`), so the
+    // daemon on the other end stays a dumb pipe to sshd and the terminal needs no
+    // socket at all. 0.41.1 rather than the newest 0.41.2, which was days old
+    // when this was written; it brings BouncyCastle 1.84, registered over
+    // Android's stripped-down "BC" provider in ConsoleApp.
+    "consoleImplementation"("com.hierynomus:sshj:0.41.1")
+    // Already in sshj's runtime dependencies, but runtime-scoped, so not on the
+    // compile classpath that ConsoleApp needs it on. Pinned to the version sshj
+    // 0.41.1 itself asks for; move the two together.
+    "consoleImplementation"("org.bouncycastle:bcprov-jdk18on:1.84")
+    // Termux's terminal-view (and through it terminal-emulator) -- Apache 2.0,
+    // unlike the rest of termux-app, which is GPLv3. Only these two modules,
+    // never termux-shared, which is outside that exception. The emulator's
+    // constructor has changed across releases; ConsoleTerminalView is written
+    // against this tag.
+    "consoleImplementation"("com.github.termux.termux-app:terminal-view:v0.118.3")
 
     // androidx.appcompat was declared but never imported -- the only androidx
     // imports in the app are WindowCompat/WindowInsets* from core-ktx. Dropped

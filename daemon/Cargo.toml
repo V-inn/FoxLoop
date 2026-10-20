@@ -23,6 +23,12 @@ authors = ["Vinicius Flesch Kern <viniciusflesch1@gmail.com>"]
 
 [dependencies]
 ashpd = "0.12.3"
+# A path dependency, not a workspace member: a workspace would move target/ to
+# the repository root, and ~/.local/bin/foxloop-daemon is a symlink into
+# daemon/target/release/ (packaging/install.sh), as are the packaging scripts'
+# and CI's artifact paths. One copy of the transport is the point; a shared
+# target directory is not worth breaking all of those for.
+foxloop-aoa = { path = "../crates/foxloop-aoa" }
 futures-util = { version = "0.3", default-features = false }
 input-linux = "0.7.1"
 libc = "0.2"
@@ -30,7 +36,6 @@ libc = "0.2"
 # negotiation in portal_capture.rs needs (installed PipeWire is 1.4.2, far past
 # the 0.3.33 this guards).
 pipewire = { version = "0.10.0", features = ["v0_3_33"] }
-rusb = "0.9"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1.53.1", features = ["rt-multi-thread", "macros", "time"] }

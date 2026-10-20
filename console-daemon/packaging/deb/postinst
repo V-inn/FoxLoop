@@ -1,0 +1,39 @@
+#!/bin/sh
+# Creates the foxloop user before udev can hand it a device, then reloads udev
+# and systemd so a phone plugged in from now on is served without a reboot.
+set -e
+
+if [ "$1" = "configure" ]; then
+    # Before the udev reload: a rule naming a group that does not exist yet
+    # leaves the device node root-owned, silently.
+    systemd-sysusers foxloop-console.conf
+
+    if [ -d /run/systemd/system ]; then
+        systemctl daemon-reload || true
+    fi
+
+    if command -v udevadm >/dev/null 2>&1; then
+        udevadm control --reload-rules || true
+        # "change", so a phone that is already plugged in gets its group now.
+        udevadm trigger --subsystem-match=usb --action=change || true
+    fi
+
+    cat <<'EOF'
+
+foxloop-console: installed. Plug the phone in, unlock it, and FoxLoop Console
+opens by itself (install the app from https://v-inn.github.io/FoxLoop/ first).
+
+It logs in through this machine's own sshd on 127.0.0.1:22, so sshd must be
+running and must allow password logins for the account you will use.
+
+Before relying on the phone for power-sensitive setups, check:
+
+    vcgencmd get_throttled
+
+0x0 is clean. Anything else means under-voltage or throttling has happened
+since boot, and a phone on the USB bus will only add to the draw.
+
+EOF
+fi
+
+exit 0

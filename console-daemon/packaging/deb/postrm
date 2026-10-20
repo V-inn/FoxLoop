@@ -1,0 +1,20 @@
+#!/bin/sh
+# Runs after dpkg has removed the files, which is the only point at which
+# reloading udev and systemd reflects what is actually on disk.
+#
+# The foxloop user is left in place on purge, as Debian does for system users:
+# a file it ever owned would otherwise end up owned by whatever account reuses
+# the number.
+set -e
+
+if [ "$1" = "remove" ] || [ "$1" = "purge" ]; then
+    if [ -d /run/systemd/system ]; then
+        systemctl daemon-reload || true
+    fi
+    if command -v udevadm >/dev/null 2>&1; then
+        udevadm control --reload-rules || true
+        udevadm trigger --subsystem-match=usb --action=change || true
+    fi
+fi
+
+exit 0

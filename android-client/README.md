@@ -4,6 +4,19 @@ The tablet half of FoxLoop: decodes the H.264 stream the daemon sends over USB a
 draws it fullscreen, and sends S Pen / touch input back the other way over the
 same connection.
 
+The same project also builds **FoxLoop Console**, a terminal for a headless
+machine over the same kind of cable. They are two product flavors with two
+application IDs, so both install side by side:
+
+| Flavor | Application ID | Source set |
+|---|---|---|
+| `display` | `io.github.v_inn.foxloop` | `app/src/display/` |
+| `console` | `io.github.v_inn.foxloop.console` | `app/src/console/` |
+
+`app/src/main/` holds only what both share: the accessory input buffer, the
+theme and the fonts. `app/src/displayDebug/` adds `INTERNET` to debug builds of
+the display only, for the adb-forward development transport.
+
 Was `experiments/android-decode-test/` until Milestone 21 — it started as a
 throwaway decode spike in Milestone 3 and quietly became the real client. See
 MILESTONES.md for anything referring to the old path.
@@ -14,19 +27,24 @@ Needs an Android SDK. Point `local.properties` at it (or set `ANDROID_HOME`):
 
 ```sh
 echo "sdk.dir=$HOME/Android/Sdk" > local.properties
-./gradlew assembleDebug
-adb install -r app/build/outputs/apk/debug/app-debug.apk
+./gradlew assembleDisplayDebug
+adb install -r app/build/outputs/apk/display/debug/app-display-debug.apk
 ```
 
 Nothing else has to be launched by hand: the daemon switches the tablet into
 USB accessory mode, and Android routes the resulting `USB_ACCESSORY_ATTACHED`
-intent straight to this app (`app/src/main/res/xml/accessory_filter.xml` has to
-keep matching the identification strings `daemon/src/aoa.rs` sends).
+intent straight to this app (`app/src/display/res/xml/accessory_filter.xml` has
+to keep matching the identification strings `daemon/src/portal_capture.rs`
+passes to `crates/foxloop-aoa`).
 
 ## Layout
 
+Display flavor, under `app/src/display/java/io/github/v_inn/foxloop/` unless the
+path says `main`:
+
 | File | What it does |
 |---|---|
+| `main: BufferedAccessoryInput.kt` | Buffered reads over the accessory fd, shared with the console |
 | `MainActivity.kt` | Transport, protocol, decode loop, S Pen capture |
 | `Settings.kt` | Persisted options; the session ones packed into the handshake's `config_flags` |
 | `SettingsActivity.kt` | Hosts the settings screen; owns the staged draft |
@@ -37,10 +55,10 @@ keep matching the identification strings `daemon/src/aoa.rs` sends).
 | `FramePreview.kt` | Grabs a still of the desktop on the way into settings, for the slab |
 | `GearButton.kt` | The draggable, edge-snapping settings entry point that survives streaming |
 | `GearEdge.kt` | Which edge it is parked against |
-| `ui/FoxLoopTokens.kt` | Colours, spacing, shapes — in Kotlin, not `res/values` |
-| `ui/FoxLoopType.kt` | The three faces, loaded from `res/font` |
-| `ui/FoxLoopTheme.kt` | The little `material3` would have given us, including the reduced-motion scale |
-| `ui/Controls.kt` | Bespoke switch, segmented choice, buttons, focus ring |
+| `main: ui/FoxLoopTokens.kt` | Colours, spacing, shapes — in Kotlin, not `res/values` |
+| `main: ui/FoxLoopType.kt` | The three faces, loaded from `res/font` |
+| `main: ui/FoxLoopTheme.kt` | The little `material3` would have given us, including the reduced-motion scale |
+| `main: ui/Controls.kt` | Bespoke switch, segmented choice, buttons, focus ring |
 | `ui/SlabControl.kt` | The tablet drawn to scale, with the real desktop in it |
 | `ui/SettingsScreen.kt` | Two-pane layout and the sections |
 | `ui/SettingsScreenState.kt` | Everything the screen draws and can do, in one value |

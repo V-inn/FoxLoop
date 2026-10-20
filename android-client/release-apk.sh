@@ -52,12 +52,15 @@ if [[ "$tag" != "v$version_name" ]]; then
 fi
 echo "building FoxLoop $version_name (versionCode $version_code) for $tag"
 
-./gradlew --quiet clean assembleRelease
+# The display flavor only. FoxLoop Console is a separate product from the same
+# tree (see the productFlavors block in app/build.gradle.kts) and is not
+# published by this script.
+./gradlew --quiet clean assembleDisplayRelease
 
-apk=app/build/outputs/apk/release/app-release.apk
+apk=app/build/outputs/apk/display/release/app-display-release.apk
 if [[ ! -f $apk ]]; then
     # The build succeeds without the keystore properties and produces
-    # app-release-unsigned.apk instead -- deliberate, so the project still
+    # app-display-release-unsigned.apk instead -- deliberate, so the project still
     # builds for anyone who clones it, but not something to publish.
     echo "no signed APK at $apk." >&2
     echo "the keystore properties are missing; this machine can only build an unsigned release." >&2
@@ -80,7 +83,7 @@ if [[ "$fingerprint" != "$EXPECTED_FINGERPRINT" ]]; then
 fi
 echo "signed by the expected key ($fingerprint)"
 
-# Named for the release rather than left as app-release.apk, which tells
+# Named for the release rather than left as app-display-release.apk, which tells
 # someone who downloaded it nothing about what they have.
 out="foxloop-$version_name.apk"
 cp "$apk" "$out"

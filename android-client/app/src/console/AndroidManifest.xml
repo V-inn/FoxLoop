@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- FoxLoop Console: a terminal for a headless machine, over the AOA cable.
+
+     INTERNET is here, in this flavor's manifest only, for the web dashboards.
+     The terminal itself needs none: it is SSH over the accessory's file
+     descriptor. But a dashboard is an SSH port forward that listens on a
+     loopback socket on the phone, and Android requires INTERNET for any socket,
+     loopback included, and for WebView itself. The display's release manifest
+     asks for nothing, which is the reason the two products are flavors rather
+     than one app.
+
+     The network security config allows plain HTTP to 127.0.0.1 only. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <application
+        android:name=".console.ConsoleApp"
+        android:networkSecurityConfig="@xml/network_security_config">
+        <!-- singleTask: a second USB_ACCESSORY_ATTACHED (a replug) must reach the
+             running session through onNewIntent, not stack a second activity
+             with a second claim on the same accessory.
+
+             configChanges: a rotation or a hardware keyboard appearing must not
+             recreate the activity, because the SSH session lives in it. The
+             terminal view reflows itself on any size change.
+
+             adjustResize: the keys row has to ride above the soft keyboard. -->
+        <activity
+            android:name=".console.ConsoleActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:windowSoftInputMode="adjustResize"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|uiMode|density"
+            android:theme="@android:style/Theme.Black.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- Routed here when the strings in accessory_filter.xml match what
+                 console-daemon/src/main.rs sends. -->
+            <intent-filter>
+                <action android:name="android.hardware.usb.action.USB_ACCESSORY_ATTACHED" />
+            </intent-filter>
+            <meta-data
+                android:name="android.hardware.usb.action.USB_ACCESSORY_ATTACHED"
+                android:resource="@xml/accessory_filter" />
+        </activity>
+    </application>
+</manifest>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Must match the strings console-daemon/src/main.rs sends via
+     ACCESSORY_SEND_STRING exactly (manufacturer/model), or Android won't route
+     USB_ACCESSORY_ATTACHED to this app. The display's filter matches
+     "FoxLoop Virtual Display" instead, so a cable only ever reaches one app.
+
+     No version attribute: a version-only match can reboot Android 10 and
+     below, per the AOA documentation. -->
+<resources>
+    <usb-accessory manufacturer="FoxLoop" model="FoxLoop Console" />
+</resources>

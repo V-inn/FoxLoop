@@ -1,5 +1,10 @@
 # Rust
 daemon/target/
+console-daemon/target/
+# A library's own lockfile is never used: whichever binary depends on it
+# resolves the versions, in that binary's Cargo.lock.
+crates/*/target/
+crates/*/Cargo.lock
 experiments/capture-latency-probe/target/
 
 # Written by packaging/build-packages.sh: the wrapper and systemd unit with
@@ -25,8 +30,9 @@ android-client/.idea/
 android-client/.cxx/
 android-client/captures/
 
-# Local working note, not a public roadmap.
+# Local working notes, not a public roadmap.
 PUBLISHING-TODO.md
+FoxLoop Console a USB console for a headless Pi.md
 
 # Signing keys must never enter this repository. They live in the user's home
 # directory (see app/build.gradle.kts, which reads them from

@@ -1,4 +1,3 @@
-mod aoa;
 mod clock_sync;
 mod desktop;
 mod ffi;

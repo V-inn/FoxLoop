@@ -1,0 +1,10 @@
+[package]
+name = "foxloop-aoa"
+version = "0.1.0"
+edition = "2021"
+description = "Android Open Accessory transport shared by the FoxLoop daemons"
+license = "MIT"
+publish = false
+
+[dependencies]
+rusb = "0.9"

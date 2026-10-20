@@ -440,6 +440,19 @@ struct CaptureData {
     stats: Rc<RefCell<CaptureStats>>,
 }
 
+/// What the tablet app's `accessory_filter.xml` matches on. Manufacturer and
+/// model must equal it exactly, or Android never routes USB_ACCESSORY_ATTACHED
+/// to the app; FoxLoop Console's daemon sends a different model, which is the
+/// whole of how the two apps stay apart.
+const AOA_IDENTITY: foxloop_aoa::Identity<'static> = foxloop_aoa::Identity {
+    manufacturer: "FoxLoop",
+    model: "FoxLoop Virtual Display",
+    description: "FoxLoop USB display + pen transport",
+    version: "1.0",
+    uri: "",
+    serial: "",
+};
+
 /// Connects whichever transport `config` selects, spawns the input-receiver
 /// thread on the read half, runs the Milestone 7 clock-offset calibration
 /// exchange, and returns the write half for video frames plus the
@@ -488,7 +501,8 @@ pub fn setup_transport(
         }
         TransportConfig::Aoa => {
             eprintln!("[transport] connecting via AOA (USB accessory mode, bypassing adb)...");
-            let t = crate::aoa::connect().unwrap_or_else(|e| panic!("AOA connect failed: {e}"));
+            let t = foxloop_aoa::connect(&AOA_IDENTITY, &foxloop_aoa::Probe::ANY)
+                .unwrap_or_else(|e| panic!("AOA connect failed: {e}"));
             eprintln!("[transport] AOA connected, waiting for the Android app to open the accessory...");
             let (r, w) = t.split();
             // USB bulk transfers are packet-oriented, not stream-oriented

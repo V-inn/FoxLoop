@@ -1,0 +1,27 @@
+# FoxLoop Console: give the console daemon's user an Android phone's USB device
+# node, and start the daemon when one appears.
+#
+# Vendors: 04e8 is Samsung, as in the display's rule. 18d1 is Google, which also
+# covers any phone *after* it re-enumerates in accessory mode (18d1:2d00/2d01).
+# Other makers join as they are tested. Must match VENDORS in
+# console-daemon/src/main.rs, which refuses to probe anything else regardless.
+#
+# Never a hub, and never a device with a mass-storage interface. This is not
+# belt and braces: Samsung's own portable SSDs carry the same 04e8 as its
+# phones, and a Pi booting from one would otherwise hand this daemon's user
+# raw access to its boot disk -- enough to detach the kernel driver and speak
+# SCSI. ID_USB_INTERFACES (":080650:080662:" for a UAS bridge) is filled in by
+# 50-udev-default.rules, which runs before this file.
+#
+# The cost: a phone that first appears as a virtual CD-ROM (some makers do, to
+# offer a driver installer) is skipped too, as the daemon skips it.
+
+ACTION=="remove", GOTO="foxloop_console_end"
+SUBSYSTEM!="usb", GOTO="foxloop_console_end"
+ENV{DEVTYPE}!="usb_device", GOTO="foxloop_console_end"
+ATTR{idVendor}!="04e8|18d1", GOTO="foxloop_console_end"
+ENV{ID_USB_INTERFACES}=="*:08*|*:09*", GOTO="foxloop_console_end"
+
+GROUP="foxloop", MODE="0660", TAG+="systemd", ENV{SYSTEMD_WANTS}+="foxloop-console.service"
+
+LABEL="foxloop_console_end"

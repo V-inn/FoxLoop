@@ -472,11 +472,11 @@ pub fn run(
     };
     if discarded > 0 {
         // The stale-USB-data race from Milestone 11: reusing an
-        // already-in-accessory-mode device (see `aoa::connect`'s "already in
+        // already-in-accessory-mode device (see `foxloop_aoa::connect`'s "already in
         // accessory mode, reusing it" path) can leave a previous session's
         // bytes queued ahead of the real handshake. Recovered rather than
         // fatal now, but still worth counting -- if this number is ever large
-        // or growing, the `clear_halt`/reset work in `aoa.rs` is the lever.
+        // or growing, the `clear_halt`/reset work in `foxloop-aoa` is the lever.
         eprintln!(
             "[input] resynced after {discarded} discarded byte(s) of stale/garbage stream data"
         );

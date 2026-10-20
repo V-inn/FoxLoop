@@ -119,8 +119,8 @@ store listing yet.
 ```sh
 cd FoxLoop/android-client
 echo "sdk.dir=$HOME/Android/Sdk" > local.properties
-./gradlew assembleDebug
-adb install -r app/build/outputs/apk/debug/app-debug.apk
+./gradlew assembleDisplayDebug
+adb install -r app/build/outputs/apk/display/debug/app-display-debug.apk
 ```
 
 A build of your own is signed with your debug key rather than the release one,

@@ -1,0 +1,62 @@
+[Unit]
+Description=FoxLoop Console (USB console relay to the local sshd)
+Documentation=https://v-inn.github.io/FoxLoop/
+# Wanted by udev when a phone is plugged in (70-foxloop-console.rules), so
+# there is no [Install] section: nothing runs until there is a cable to serve.
+# The daemon exits 0 once the phone is gone, and the next plug starts it again.
+After=ssh.service
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+# A system unit, unlike the display daemon's `systemd --user` one: a headless
+# machine has no user session to start anything in.
+User=foxloop
+Group=foxloop
+ExecStart=/usr/bin/foxloop-console 127.0.0.1:22
+Restart=on-failure
+RestartSec=2
+
+# --- Sandboxing -------------------------------------------------------------
+# The daemon needs two things: the phone's USB device node, and one TCP
+# connection to sshd on loopback. It needs no root -- sshd does the password
+# check and the user switch -- so it gets nothing else.
+
+# USB device nodes only. /dev/vcio is for `vcgencmd get_throttled`, the fallback
+# when the kernel does not expose the throttled flags in sysfs; it is a no-op
+# on a machine that is not a Raspberry Pi.
+DevicePolicy=closed
+DeviceAllow=char-usb_device rw
+DeviceAllow=/dev/vcio rw
+SupplementaryGroups=video
+
+# "Loopback only" as a kernel-enforced fact rather than a promise: with these
+# two, a compromised daemon cannot open a connection anywhere but this machine.
+IPAddressAllow=localhost
+IPAddressDeny=any
+# AF_NETLINK: libusb watches for hotplug events over it.
+RestrictAddressFamilies=AF_INET AF_INET6 AF_NETLINK
+
+# Possible here, unlike in the display daemon, because this one writes nothing.
+ProtectHome=yes
+ProtectSystem=strict
+PrivateTmp=yes
+
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+RestrictSUIDSGID=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+ProtectProc=invisible
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+UMask=0077

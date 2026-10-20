@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Debug-only additions.
+    Debug-only additions, display flavor only.
 
     The adb-forward transport (`foxloop 7777`, Milestones 3-7) listens on a TCP
     socket, so it needs INTERNET. It is a development path: the shipped

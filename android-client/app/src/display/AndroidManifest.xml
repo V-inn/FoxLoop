@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- FoxLoop, the display. Everything here was the whole manifest before FoxLoop
+     Console became a second flavor; src/main keeps only what both share. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:screenOrientation="unspecified"
+            android:configChanges="orientation|screenSize|keyboardHidden">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- Milestone 8: launched automatically when the daemon
+                 switches the tablet into AOA accessory mode over USB
+                 (bypassing adb) and the strings in accessory_filter.xml
+                 match what daemon/src/aoa.rs sends. -->
+            <intent-filter>
+                <action android:name="android.hardware.usb.action.USB_ACCESSORY_ATTACHED" />
+            </intent-filter>
+            <meta-data
+                android:name="android.hardware.usb.action.USB_ACCESSORY_ATTACHED"
+                android:resource="@xml/accessory_filter" />
+            <!-- Android 16 (API 36) ignores screenOrientation, resizability and
+                 aspect-ratio restrictions on any display whose smallest width is
+                 at least 600dp, for apps targeting 36. That includes
+                 setRequestedOrientation(), which is how MainActivity locks
+                 itself at launch (Milestone 15), and it includes this tablet:
+                 2560x1600 at density 340 is sw753dp.
+
+                 This property is the documented opt-out. Keep it, but do not
+                 trust it: on this device it does not work. Measured, with the
+                 property present and confirmed in the built APK by aapt2, the
+                 activity still launched locked to portrait and then followed
+                 the display into landscape. Disabling the underlying compat
+                 change by hand (am compat disable 357141415, which is
+                 UNIVERSAL_RESIZABLE_BY_DEFAULT) did hold the lock, so the
+                 change is certainly what moves the window and this property is
+                 simply not disabling it on this One UI build.
+
+                 It stays because it costs nothing and should work where the
+                 platform honours it, in which case rotating the tablet does not
+                 disturb a session at all. What the app actually relies on is
+                 MainActivity.surfaceChanged, which renegotiates by reconnecting
+                 when the surface changes shape. Read that comment before
+                 touching this one.
+
+                 Activity-scoped, not application-scoped: SettingsActivity has
+                 no orientation restriction and is genuinely resizable, so it
+                 should keep the new behaviour.
+
+                 Note the property is removed entirely at API 37, and a user-set
+                 per-app override in device settings defeats it even now. Both
+                 are further reasons the surfaceChanged path is the real fix. -->
+            <property
+                android:name="android.window.PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY"
+                android:value="true" />
+        </activity>
+        <!-- Reached from the gear, or from the status overlay while
+             disconnected; the main activity runs edge-to-edge immersive with no
+             system chrome to hang a menu off.
+
+             NoTitleBar, and no android:label: with a title bar this activity
+             drew "FoxLoop settings" twice, once as system chrome from the label
+             and once as the screen's own first heading. -->
+        <activity
+            android:name=".SettingsActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.Black.NoTitleBar" />
+    </application>
+</manifest>

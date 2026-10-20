@@ -1,0 +1,51 @@
+[package]
+name = "foxloop-console"
+version = "0.1.0"
+edition = "2021"
+description = "Reach a headless machine's shell from an Android phone over USB"
+homepage = "https://github.com/V-inn/FoxLoop"
+repository = "https://github.com/V-inn/FoxLoop"
+license = "MIT"
+authors = ["Vinicius Flesch Kern <viniciusflesch1@gmail.com>"]
+
+[dependencies]
+foxloop-aoa = { path = "../crates/foxloop-aoa" }
+# For the AOA serial string only: a stable, per-machine ID that does not hand
+# /etc/machine-id itself to the phone (see `machine_serial` in main.rs).
+sha2 = "0.10"
+
+# --- Packaging --------------------------------------------------------------
+#
+# One .deb, built where it will run: `$auto` resolves libusb's package name
+# from the build machine, so the arm64 package for a Raspberry Pi is built on
+# arm64 Debian 12 (bookworm, what Raspberry Pi OS is based on) -- see
+# packaging/build-deb.sh.
+
+[package.metadata.deb]
+name = "foxloop-console"
+section = "admin"
+priority = "optional"
+license-file = ["../LICENSE", "0"]
+# openssh-server: the daemon is a pipe to it, and does nothing on its own.
+depends = "$auto, openssh-server"
+maintainer-scripts = "packaging/deb"
+extended-description = """
+FoxLoop Console lets an Android phone on a USB cable log into this machine's
+shell, with no network at all: it works with Wi-Fi down and no DHCP lease,
+which is when a headless machine needs a console most.
+
+This package is the machine's half: a small daemon that carries bytes between
+the cable and the local sshd on 127.0.0.1:22. sshd checks the password and
+opens the terminal; the daemon runs as its own unprivileged user and can reach
+nothing but loopback. udev starts it when a phone is plugged in.
+
+It needs the FoxLoop Console Android app on the phone.
+"""
+assets = [
+    ["target/release/foxloop-console", "usr/bin/foxloop-console", "755"],
+    ["packaging/foxloop-console.service", "usr/lib/systemd/system/foxloop-console.service", "644"],
+    # /usr/lib, not /etc: /etc is the administrator's, and a package that writes
+    # there takes away their ability to override it.
+    ["packaging/70-foxloop-console.rules", "usr/lib/udev/rules.d/70-foxloop-console.rules", "644"],
+    ["packaging/foxloop-console.sysusers", "usr/lib/sysusers.d/foxloop-console.conf", "644"],
+]

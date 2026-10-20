@@ -1,7 +1,9 @@
-//! Milestone 8: Android Open Accessory (AOA) transport -- talks to the
-//! tablet directly over raw USB bulk transfers via `rusb`/libusb, bypassing
-//! adb entirely (no adb-forward relay hop through the host's adb server and
-//! the device's adbd).
+//! Android Open Accessory (AOA) transport -- talks to an Android device
+//! directly over raw USB bulk transfers via `rusb`/libusb, bypassing adb
+//! entirely (no adb-forward relay hop through the host's adb server and the
+//! device's adbd). Introduced in MILESTONES.md Milestone 8 for the display
+//! daemon; a crate of its own since FoxLoop Console, which needs the same
+//! transport with a different identity and a narrower device scan.
 //!
 //! AOA handshake (standard protocol, not Samsung-specific): send a vendor
 //! control request asking the device's protocol version, send six
@@ -10,10 +12,11 @@
 //! re-enumerates under Google's AOA vendor/product ID -- we have to find
 //! and open *that* new device, not the original one.
 //!
-//! These six strings are the pairing identity: the Android app's
+//! The six strings are the pairing identity, which is why they are a
+//! parameter (`Identity`) rather than constants: the Android app's
 //! `accessory_filter.xml` manifest resource must match manufacturer/model
-//! (version/uri/serial are informational) for Android to route the
-//! USB_ACCESSORY_ATTACHED intent to our app at all.
+//! for Android to route the USB_ACCESSORY_ATTACHED intent to that app at
+//! all, and each FoxLoop product has its own app.
 
 use std::io::{self, Read, Write};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -32,10 +35,45 @@ const ACCESSORY_GET_PROTOCOL: u8 = 51;
 const ACCESSORY_SEND_STRING: u8 = 52;
 const ACCESSORY_START: u8 = 53;
 
-const MANUFACTURER: &str = "FoxLoop";
-const MODEL: &str = "FoxLoop Virtual Display";
-const DESCRIPTION: &str = "FoxLoop USB display + pen transport";
-const VERSION: &str = "1.0";
+const CLASS_MASS_STORAGE: u8 = 0x08;
+const CLASS_HUB: u8 = 0x09;
+
+/// The six AOA identification strings, in the order the spec indexes them.
+///
+/// Android matches `manufacturer` and `model` against the app's
+/// `accessory_filter.xml`; the rest are shown to the user or read by the app.
+/// Never filter on `version` alone: the AOA documentation warns that a
+/// version-only match can reboot Android 10 and below.
+pub struct Identity<'a> {
+    pub manufacturer: &'a str,
+    pub model: &'a str,
+    pub description: &'a str,
+    pub version: &'a str,
+    /// Offered to the user as a download link when no installed app matches.
+    pub uri: &'a str,
+    pub serial: &'a str,
+}
+
+/// Which USB devices `connect` may send AOA vendor requests to.
+///
+/// Probing means opening the device and sending it `GET_PROTOCOL`. Most
+/// devices that are not Android simply stall that request, but "most" is the
+/// operative word: on a Raspberry Pi booting from a USB SSD, the SATA bridge is
+/// one of the devices on the bus, and sending vendor requests to storage is a
+/// risk with nothing to gain.
+pub struct Probe<'a> {
+    /// Only devices with one of these vendor IDs. `None` probes every vendor.
+    pub vendors: Option<&'a [u16]>,
+    /// Never probe a hub, or a device exposing a mass-storage interface in any
+    /// configuration. Decided from descriptors libusb already cached, so a
+    /// skipped device receives no request at all.
+    pub skip_storage_and_hubs: bool,
+}
+
+impl Probe<'_> {
+    /// What the display daemon has always done: ask every device.
+    pub const ANY: Probe<'static> = Probe { vendors: None, skip_storage_and_hubs: false };
+}
 
 // Separate read/write timeouts, not one shared value: reads (particularly
 // the very first one, waiting for Android's handshake) need to tolerate
@@ -83,6 +121,7 @@ pub struct AoaTransport {
 pub struct AoaReader {
     shared: Arc<Shared>,
     ep_in: u8,
+    idle_limit: Option<Duration>,
 }
 
 pub struct AoaWriter {
@@ -97,11 +136,42 @@ impl AoaTransport {
     /// there's nothing left to leak or explicitly keep around afterward.
     pub fn split(self) -> (AoaReader, AoaWriter) {
         (
-            AoaReader { shared: self.shared.clone(), ep_in: self.ep_in },
+            AoaReader { shared: self.shared.clone(), ep_in: self.ep_in, idle_limit: None },
             AoaWriter { shared: self.shared, ep_out: self.ep_out },
         )
     }
 }
+
+/// Why `connect` gave up. Displays as the plain strings it used to return, so
+/// a caller that only prints it sees no difference.
+#[derive(Debug)]
+pub enum ConnectError {
+    /// Nothing the probe allows answered `GET_PROTOCOL` within the scan window.
+    NoDevice(Duration),
+    /// A device accepted the switch and never came back as an accessory.
+    /// Worth asking again: seen on a Galaxy Tab when the request landed while
+    /// Android was still applying a USB function change of its own -- it took
+    /// the request without error and stayed in MTP mode. The same request a
+    /// few seconds later switched it at once.
+    NotReenumerated,
+    /// libusb itself failed.
+    Usb(String),
+}
+
+impl std::fmt::Display for ConnectError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ConnectError::NoDevice(within) => write!(
+                f,
+                "no AOA-capable USB device found within {within:?} (is the Android device connected and unlocked?)"
+            ),
+            ConnectError::NotReenumerated => f.write_str("timed out waiting for AOA re-enumeration"),
+            ConnectError::Usb(e) => f.write_str(e),
+        }
+    }
+}
+
+impl std::error::Error for ConnectError {}
 
 fn send_string(
     handle: &rusb::DeviceHandle<rusb::GlobalContext>,
@@ -114,13 +184,19 @@ fn send_string(
     Ok(())
 }
 
-/// Scans every USB device for one that answers the AOA `GET_PROTOCOL`
-/// vendor request, switches it into accessory mode, waits for it to
-/// re-enumerate under Google's AOA VID/PID, and opens that new device --
-/// generic device discovery, not hardcoded to this tablet's own VID/PID
-/// (matches the project's no-hardcoding rule: any AOA-capable Android
-/// device should work here unmodified).
-pub fn connect() -> Result<AoaTransport, String> {
+/// Scans the USB devices `probe` allows for one that answers the AOA
+/// `GET_PROTOCOL` vendor request, switches it into accessory mode under
+/// `identity`, waits for it to re-enumerate under Google's AOA VID/PID, and
+/// opens that new device -- generic device discovery, not hardcoded to any
+/// one tablet's own VID/PID (matches the project's no-hardcoding rule: any
+/// AOA-capable Android device should work here unmodified).
+///
+/// A device that is *already* in accessory mode is reused without a switch,
+/// and nothing on the bus says which identity it was switched under: the
+/// re-enumerated device reports Google's IDs, not ours. So a phone left in
+/// accessory mode by the display daemon is picked up by the console daemon
+/// too, and stays routed to the display app until it is replugged.
+pub fn connect(identity: &Identity, probe: &Probe) -> Result<AoaTransport, ConnectError> {
     // Bounded retry, not a single instant scan-and-fail: confirmed live,
     // this matters. A USB replug takes the tablet a few seconds to work
     // through disconnect -> re-enumerate-as-MTP before it's visible here at
@@ -146,10 +222,13 @@ pub fn connect() -> Result<AoaTransport, String> {
             return Ok(t);
         }
 
-        let devices = rusb::devices().map_err(|e| format!("rusb::devices: {e}"))?;
+        let devices = rusb::devices().map_err(|e| ConnectError::Usb(format!("rusb::devices: {e}")))?;
 
         let mut switched_any = false;
         for device in devices.iter() {
+            if !probe_allows(probe, &device) {
+                continue;
+            }
             let Ok(handle) = device.open() else { continue };
 
             let mut protocol_buf = [0u8; 2];
@@ -168,16 +247,16 @@ pub fn connect() -> Result<AoaTransport, String> {
                 device.address()
             );
 
-            send_string(&handle, 0, MANUFACTURER).map_err(|e| format!("send manufacturer: {e}"))?;
-            send_string(&handle, 1, MODEL).map_err(|e| format!("send model: {e}"))?;
-            send_string(&handle, 2, DESCRIPTION).map_err(|e| format!("send description: {e}"))?;
-            send_string(&handle, 3, VERSION).map_err(|e| format!("send version: {e}"))?;
-            send_string(&handle, 4, "").map_err(|e| format!("send uri: {e}"))?;
-            send_string(&handle, 5, "").map_err(|e| format!("send serial: {e}"))?;
+            send_string(&handle, 0, identity.manufacturer).map_err(|e| ConnectError::Usb(format!("send manufacturer: {e}")))?;
+            send_string(&handle, 1, identity.model).map_err(|e| ConnectError::Usb(format!("send model: {e}")))?;
+            send_string(&handle, 2, identity.description).map_err(|e| ConnectError::Usb(format!("send description: {e}")))?;
+            send_string(&handle, 3, identity.version).map_err(|e| ConnectError::Usb(format!("send version: {e}")))?;
+            send_string(&handle, 4, identity.uri).map_err(|e| ConnectError::Usb(format!("send uri: {e}")))?;
+            send_string(&handle, 5, identity.serial).map_err(|e| ConnectError::Usb(format!("send serial: {e}")))?;
 
             handle
                 .write_control(0x40, ACCESSORY_START, 0, 0, &[], CONTROL_TIMEOUT)
-                .map_err(|e| format!("ACCESSORY_START: {e}"))?;
+                .map_err(|e| ConnectError::Usb(format!("ACCESSORY_START: {e}")))?;
 
             switched_any = true;
             break;
@@ -188,9 +267,7 @@ pub fn connect() -> Result<AoaTransport, String> {
         }
 
         if Instant::now() > scan_deadline {
-            return Err(format!(
-                "no AOA-capable USB device found within {DEVICE_SCAN_TIMEOUT:?} (is the tablet connected and USB debugging/accessory mode available?)"
-            ));
+            return Err(ConnectError::NoDevice(DEVICE_SCAN_TIMEOUT));
         }
         std::thread::sleep(Duration::from_millis(500));
     }
@@ -199,13 +276,40 @@ pub fn connect() -> Result<AoaTransport, String> {
     let deadline = Instant::now() + REENUMERATE_TIMEOUT;
     loop {
         if Instant::now() > deadline {
-            return Err("timed out waiting for AOA re-enumeration".into());
+            return Err(ConnectError::NotReenumerated);
         }
         if let Some(t) = try_open_accessory() {
             return Ok(t);
         }
         std::thread::sleep(Duration::from_millis(200));
     }
+}
+
+fn probe_allows(probe: &Probe, device: &rusb::Device<rusb::GlobalContext>) -> bool {
+    let Ok(desc) = device.device_descriptor() else { return false };
+    if !probe.skip_storage_and_hubs {
+        return vendor_allowed(probe, desc.vendor_id());
+    }
+    // Every configuration, not just the active one: a device can expose
+    // storage in a configuration it is not currently using. Any descriptor we
+    // cannot read counts against the device -- the point is to be sure.
+    let mut classes = vec![desc.class_code()];
+    for i in 0..desc.num_configurations() {
+        let Ok(config) = device.config_descriptor(i) else { return false };
+        for interface in config.interfaces() {
+            classes.extend(interface.descriptors().map(|alt| alt.class_code()));
+        }
+    }
+    vendor_allowed(probe, desc.vendor_id()) && !storage_or_hub(&classes)
+}
+
+/// `classes`: the device class, then every interface class it declares.
+fn storage_or_hub(classes: &[u8]) -> bool {
+    classes.iter().any(|&c| c == CLASS_MASS_STORAGE || c == CLASS_HUB)
+}
+
+fn vendor_allowed(probe: &Probe, vendor_id: u16) -> bool {
+    probe.vendors.is_none_or(|v| v.contains(&vendor_id))
 }
 
 fn try_open_accessory() -> Option<AoaTransport> {
@@ -301,6 +405,18 @@ fn try_open_accessory() -> Option<AoaTransport> {
     None
 }
 
+impl AoaReader {
+    /// How long a read may wait for the first byte before failing with
+    /// `ErrorKind::TimedOut`. `None`, the default, waits forever -- see the
+    /// `Read` impl for why the display daemon needs that. A protocol with its
+    /// own heartbeat wants the opposite: silence past the heartbeat interval
+    /// *is* the failure, and only the reading thread can notice it, because a
+    /// blocked bulk read cannot be interrupted from outside.
+    pub fn set_idle_limit(&mut self, limit: Option<Duration>) {
+        self.idle_limit = limit;
+    }
+}
+
 impl Read for AoaReader {
     /// Loops on a USB bulk timeout instead of surfacing it as an error --
     /// confirmed live: `input_receiver.rs`'s steady-state loop reads one
@@ -315,9 +431,12 @@ impl Read for AoaReader {
     /// `rusb::Error` variant and still propagate normally.
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         loop {
-            match self.shared.handle.read_bulk(self.ep_in, buf, READ_TIMEOUT) {
+            match self.shared.handle.read_bulk(self.ep_in, buf, self.idle_limit.unwrap_or(READ_TIMEOUT)) {
                 Ok(n) => return Ok(n),
-                Err(rusb::Error::Timeout) => continue,
+                Err(rusb::Error::Timeout) if self.idle_limit.is_none() => continue,
+                Err(rusb::Error::Timeout) => {
+                    return Err(io::Error::new(io::ErrorKind::TimedOut, "AOA bulk read: idle limit reached"))
+                }
                 Err(e) => return Err(io::Error::other(format!("AOA bulk read: {e}"))),
             }
         }
@@ -339,5 +458,39 @@ impl Write for AoaWriter {
 impl Drop for Shared {
     fn drop(&mut self) {
         let _ = self.handle.release_interface(self.interface);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn any_allows_every_vendor() {
+        assert!(vendor_allowed(&Probe::ANY, 0x04E8));
+        assert!(vendor_allowed(&Probe::ANY, 0x152D));
+    }
+
+    #[test]
+    fn vendor_list_is_exclusive() {
+        let probe = Probe { vendors: Some(&[0x04E8, GOOGLE_VID]), skip_storage_and_hubs: true };
+        assert!(vendor_allowed(&probe, 0x04E8));
+        assert!(vendor_allowed(&probe, GOOGLE_VID));
+        // A JMicron USB-SATA bridge, the usual thing a Pi boots from.
+        assert!(!vendor_allowed(&probe, 0x152D));
+    }
+
+    #[test]
+    fn storage_and_hubs_are_recognised_anywhere_in_the_list() {
+        // A phone: device class 0 (per interface), MTP and adb interfaces.
+        assert!(!storage_or_hub(&[0x00, 0x06, 0xFF]));
+        // A UAS SSD bridge, and the same bridge declaring its class up front.
+        assert!(storage_or_hub(&[0x00, 0x08, 0x08]));
+        assert!(storage_or_hub(&[0x08]));
+        // A hub, which carries class 9 on the device itself.
+        assert!(storage_or_hub(&[0x09, 0x09]));
+        // Some phones expose a virtual CD-ROM for driver install: also skipped,
+        // which is the price of never touching storage.
+        assert!(storage_or_hub(&[0x00, 0x08, 0xFF]));
     }
 }

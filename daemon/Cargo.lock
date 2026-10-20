@@ -301,16 +301,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "foxloop-aoa"
+version = "0.1.0"
+dependencies = [
+ "rusb",
+]
+
+[[package]]
 name = "foxloop-daemon"
 version = "0.2.0"
 dependencies = [
  "ashpd",
  "bindgen 0.70.1",
+ "foxloop-aoa",
  "futures-util",
  "input-linux",
  "libc",
  "pipewire",
- "rusb",
  "serde",
  "serde_json",
  "tokio",

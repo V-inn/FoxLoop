@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Plain HTTP to the phone's own loopback and nowhere else.
+
+     Dashboards are loaded from http://127.0.0.1:<port>, the phone's end of an
+     SSH port forward: the bytes are already inside SSH by the time they leave
+     the phone, so TLS inside the tunnel would add nothing. Since Android 9,
+     WebView refuses cleartext unless it is allowed per host, and this allows
+     it for that one address. Anything else keeps the platform default, which
+     is HTTPS only. -->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">127.0.0.1</domain>
+    </domain-config>
+</network-security-config>

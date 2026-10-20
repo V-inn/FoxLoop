@@ -1,0 +1,4 @@
+# The unprivileged user foxloop-console.service runs as. No home, no shell:
+# it owns nothing and logs into nothing. Installed to /usr/lib/sysusers.d and
+# applied by the package's postinst.
+u foxloop - "FoxLoop Console daemon" /nonexistent /usr/sbin/nologin

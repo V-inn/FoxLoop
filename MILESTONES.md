@@ -3808,3 +3808,334 @@ accessory mode itself.)
   Android 16.
 - **Multi-touch gestures were not exercised on the phone**, only assumed to work
   from sharing the touchpad path.
+
+## 33. (Steps 1 and 3 verified on the tablet; not yet on a phone or a Pi) FoxLoop Console, steps 1–4
+
+FoxLoop Console is a second product from this tree: plug a phone into a headless
+machine (a Raspberry Pi) and get its shell on the phone, over the AOA cable, with
+no network. The design behind it is a working document kept outside this
+repository; its plan has six steps. Steps 1–4 were written in one
+session with no phone attached; the tablet was plugged in afterwards, first to
+check step 1 and then standing in for the phone. Nothing has run on a Pi, and
+the last section says exactly what else is unverified.
+
+The shape, from the design: the Pi daemon is a dumb framed pipe between the AOA
+link and its own sshd on `127.0.0.1:22`, and the app runs a real SSH client
+(sshj) over that pipe. sshd does the password, the PTY and the rate limiting; the
+daemon needs no root.
+
+### Step 1: the shared transport, and the display left byte-identical
+
+**A path dependency, not a workspace.** The design said to make the repository a
+Cargo workspace. A workspace moves `target/` to the workspace root, and four
+things point into `daemon/target/release/`: the `~/.local/bin/foxloop-daemon`
+symlink `install.sh` makes (the whole edit-test loop), `build-packages.sh`, both
+CI artifact paths, and this project's own working notes. The design's actual
+goal — one copy of the transport — is met by `crates/foxloop-aoa` as a path
+dependency of each daemon, which moves nothing. `build-packages.sh` now stages
+`crates/` beside `daemon/`, since its stage copies sources only.
+
+`aoa.rs` moved there with `git mv`. Three changes, each a parameter rather than
+a behaviour change for the display:
+
+- **`Identity`**: the six AOA strings. The display passes exactly what it always
+  sent.
+- **`Probe`**: which devices may receive `GET_PROTOCOL`. `Probe::ANY` is the
+  display's old behaviour. The console passes a vendor list and
+  `skip_storage_and_hubs`, which reads cached descriptors only, so a skipped
+  device receives no request at all.
+- **`AoaReader::set_idle_limit`**: `None` keeps the 90 s loop-forever read the
+  display needs (Milestone 8). The console needs the opposite — silence past the
+  heartbeat *is* the failure — and only the reading thread can notice it,
+  because a blocked bulk read cannot be interrupted from outside.
+
+On Android, display-only code moved to `src/display/`, its tests to
+`src/testDisplay/`, and the debug-only `INTERNET` from `src/debug/` to
+`src/displayDebug/`, so a debug *console* build does not get it and quietly
+prove nothing about step 3's "no INTERNET". `BufferedAccessoryInput` moved to
+`src/main/` as a top-level class, unchanged.
+
+Checked without a tablet, against a release APK built from `beacfd6` just before
+the change: `aapt2 dump badging` identical; the manifest's `xmltree` identical
+apart from `(line=N)` source annotations; the same 69 files in the zip; the same
+signer (`f9264e72…`). `classes.dex` differs, and only as the move predicts — same
+4003 classes, one method more, renamed by R8. A first attempt put the console's
+packaging excludes on the whole module, which silently dropped jspecify's
+145-byte OSGi manifest from the display APK; they are applied per variant now,
+and the file list matches again.
+
+**Then on the tablet.** The running daemon was already the refactored build
+(started after it, from the `~/.local/bin` symlink), and it proved so by itself:
+its log carried the new crate's reworded error, `(is the Android device
+connected and unlocked?)`. It switched the tablet to accessory mode, saw it
+re-enumerate, took the handshake and streamed — latency 21 ms on a 1 ms clock
+round-trip, inside the documented ~27 ms. After a restart it also took the
+crate's other path, `device already in accessory mode, reusing it`.
+
+The flavor-built display release APK then went on as an upgrade over the
+installed 0.1 (same signing key, so no uninstall) and needed the usual replug.
+With it: stream up (19 ms, round-trip 9 ms), the gear found and the settings
+screen opened and rendered whole — fonts and tokens now come from `src/main`, the
+slab from `src/display` — and the gear isolation regression passed at 0 px
+against a 0 px floor. Its first run reported a 13.5 M px floor, which is the
+"desktop still repainting after leaving settings" case the skill documents; one
+restart cleared it.
+
+### Step 2: the daemon, and how it was tested with no phone
+
+`console-daemon/`: `frame.rs` (the protocol, documented there), `session.rs` (the
+loop), `status.rs` (throttled flags, CPU temperature). The decisions that are not
+in the design:
+
+- **One link, many sessions.** A session is HELLO..CLOSE; the link is the USB
+  connection. A new HELLO mid-session starts a fresh session — that is how the
+  app reconnects without reopening the accessory. The writer thread lives with
+  the link, not the session, behind a bounded channel: a stalled USB write stops
+  the TCP reader, which stops reading sshd, which is the backpressure the design
+  asks for.
+- **`find_hello` scans byte by byte**, as the display's `read_handshake` does,
+  because what precedes a HELLO may be a previous session's tail cut anywhere.
+  A test feeds it half a DATA frame whose payload contains a HELLO type byte, and
+  the display's `QUIL` handshake.
+- **The serial is not the machine-id.** machine-id(5) asks that the ID not be
+  exposed and that applications derive their own; the AOA serial is readable on
+  the phone. It is the first 8 bytes of SHA-256 over `foxloop-console:<id>`.
+- **Throttled flags come from sysfs first**
+  (`/sys/devices/platform/soc/soc:firmware/get_throttled`), `vcgencmd` second —
+  decided once at start, so a laptop does not spawn a failing process every
+  second. Unknown is sent as `u32::MAX` / `i32::MIN`, values no Pi reports.
+
+The design's step 2 is "done when HELLO, WELCOME and DATA round-trip", which
+needs a phone. In its place, the session tests run the real loop with a TCP pair
+standing in for the cable (its read timeout behaves as the AOA idle limit) and a
+loopback listener for sshd: round trip, a full 16 KiB frame, CLOSE from either
+side, a mid-session HELLO, sshd unreachable, a silent phone ending the session,
+PINGs keeping a quiet one alive, a wrong version ignored. 26 pass, repeatedly.
+
+One test is `#[ignore]` because it needs this machine's sshd: it puts the real
+OpenSSH `ssh` client on the app's end of the pipe and asserts that
+`SSH2_MSG_NEWKEYS received` appears and authentication is reached. It passes.
+That is the strongest claim available without a cable: **real OpenSSH key
+exchange survives the framing byte for byte.**
+
+### Step 3: the app
+
+Flavor `console`, ID `io.github.v_inn.foxloop.console`, label *FoxLoop Console*.
+Release manifest checked with `aapt2`: no `INTERNET`. Same signing key as the
+display.
+
+- **Termux's `TerminalView` cannot be used.** It only works attached to a
+  `TerminalSession`, and that class is `final` and forks a local shell through
+  JNI. `ConsoleTerminalView` drives `TerminalEmulator` and `TerminalRenderer`
+  directly, with keyboard handling ported from `TerminalView` (including its
+  workarounds for Samsung's keyboard and Bluetooth keyboards). This answers the
+  design's open question: in **terminal-view v0.118.3** the emulator's
+  constructor takes seven arguments,
+  `(TerminalOutput, cols, rows, cellWidthPx, cellHeightPx, transcriptRows, client)`.
+  `libtermux.so` (the JNI fork helper) is excluded from the console APK.
+- **JitPack is allowed to answer for one group only**
+  (`com.github.termux.termux-app`), so it can never shadow a Maven Central
+  artifact.
+- **One reader thread per accessory fd** (`AccessoryLink`), with sessions as the
+  place frames are delivered. A reader per session is impossible: the previous
+  one would stay blocked in a read that only closing the fd can end
+  (`BufferedAccessoryInput.close`'s own comment, Milestone 11). On open, the
+  reader scans for the WELCOME carrying the session's 64-bit nonce, byte by
+  byte; after that the stream is in step.
+- **PING and the watchdog are separate threads**, because an accessory write has
+  no timeout: if the daemon dies with the phone still in accessory mode, a PING
+  blocks forever, and a watchdog that also sent PINGs would block with it.
+- **A probe session fetches the hostname and closes at once.** The daemon
+  connects to sshd on HELLO, and sshd drops an unauthenticated connection after
+  `LoginGraceTime` (two minutes) — less than someone may spend on the form.
+- **An unknown host key rejects the connection and asks**, then logs in again
+  if trusted. Blocking sshj's verifier on the UI instead would race its key
+  exchange timeout. Keys are pinned per AOA serial because `connectVia` gives
+  every machine the same placeholder host.
+- **BouncyCastle had three surprises.** Android's own `BC` provider is a stripped
+  one that sshj finds by name and then fails inside key exchange, so
+  `ConsoleApp` swaps in the full provider. `bcprov` is runtime-scoped in sshj's
+  POM, so it had to be declared to compile against. And its jars collide with
+  jspecify on an OSGi manifest path, which fails the merge.
+- **The console can ask for the accessory itself** (`UsbManager.requestPermission`)
+  after a reinstall drops the grant, which the display cannot (see the
+  reinstall trap in the working notes).
+
+Unit tests (JVM): the protocol against golden byte vectors that
+`console-daemon/src/frame.rs` also tests against, so each half is held to the
+bytes rather than to the other half's code; host-key decisions and
+fingerprints; the power readout's bit table. 20 pass. The release variant builds
+under R8 (3.7 MB); whether it *runs* is the first thing to check on a phone,
+because BouncyCastle's reflective registration is what R8 breaks.
+
+### Step 4: the Pi package
+
+`console-daemon/packaging/`: a system unit (a headless Pi has no user session),
+a sysusers file for the `foxloop` user, the udev rule, postinst/postrm, and
+`build-deb.sh` (a clean `debian:12` container, because Raspberry Pi OS is
+bookworm and cargo-deb resolves `$auto` against the build machine). Run once, for
+amd64: it builds from nothing but the packages the README names, and the result
+asks for `libc6 (>= 2.34)` — bookworm's — where the same package built directly
+on this trixie laptop asked for 2.39 and would not have installed on a Pi.
+
+**The udev rule excludes storage itself, not only the daemon.** The design kept
+vendor requests away from the Pi's SSD bridge by filtering in the daemon. But
+the rule grants the `foxloop` group every `04e8` device, and Samsung's portable
+SSDs are `04e8` too: that would hand the daemon's user raw access to the boot
+disk, enough to detach `uas` and speak SCSI. udev's own `usb_id` builtin (rule
+50) sets `ID_USB_INTERFACES`, e.g. `:080650:080662:` for a UAS bridge, so rule 70
+skips anything with a class `08` or `09` interface. Checked on this laptop that
+the property is populated (`:090000:` on a root hub). `udevadm verify` passes
+except for "Unknown group 'foxloop'", which postinst creates before reloading
+udev.
+
+The unit is `IPAddressDeny=any` + `IPAddressAllow=localhost`,
+`DeviceAllow=char-usb_device`, `ProtectHome=yes` (possible here: it writes
+nothing), no capabilities. `systemd-analyze verify` objects only that the binary
+is not installed on this machine.
+
+### Then the console, on the tablet
+
+No phone was at hand, but the tablet is a Samsung, so the console ran on it
+against this laptop's sshd: console daemon by hand, console **release** APK on
+the tablet. The AOA switch under the console identity worked, Android routed the
+cable to `ConsoleActivity`, HELLO/WELCOME completed, and the login form named the
+machine. Then every login killed the app, twice over:
+
+- **`LinkedBlockingQueue.put` on an interrupted thread.** Tearing a connection
+  down, sshj interrupts its reader thread and then closes the output stream *on
+  that thread*; `Session.finish` used `put`, which throws `InterruptedException`
+  there, uncaught. Every first login ends in exactly that teardown -- the unknown
+  host key is rejected so the trust prompt can be shown -- so every first login
+  crashed. `offer` on the unbounded queue cannot throw.
+- **`openAccessory` throws, it does not only return null.** A permission
+  broadcast carried the console accessory while the system still held the
+  display's as current (the tablet had been switched without a replug), and the
+  `IllegalArgumentException` was uncaught. Caught now, and the permission path
+  looks the attached accessory up again instead of trusting the intent's.
+
+With both fixed, the user logged in, accepted the host key and got a working
+shell: colour, `fastfetch`, the keys row above the keyboard. The release build's
+BouncyCastle survived R8 -- key exchange completed. The phone-charge readout came
+out on the user's call after it read "not charging" under the tablet's own
+lightning bolt (`isCharging` is stricter than the icon).
+
+The rest of the checklist was then **reported working by the user, not read out
+of a log**: `htop`, `vim`, rotating the tablet (terminal reflow and remote
+resize), every key in the keys row, pinch-to-zoom, scrollback, and `exit`
+followed by "Log in again". The last one is also in the daemon's log -- a session
+the app closed, then a fresh HELLO for the next login -- and the crash buffer
+stayed empty throughout.
+
+Two things about the bench, recorded because each cost a round:
+
+- **`systemctl --user mask --runtime` did nothing.** The display unit is in
+  `~/.config/systemd/user`, which outranks `/run`, so the mask was ignored without
+  an error and udev kept starting the display daemon on every re-enumeration. For
+  a while it lost every race for the device and just failed; once it won, and the
+  console daemon gave up. A runtime drop-in with an unmet `Condition` works,
+  because drop-ins merge across directories (`console-daemon/README.md`).
+- **A switch request can be swallowed.** `adb shell svc usb setFunctions mtp`
+  takes a device out of accessory mode without a replug -- but a switch sent
+  while Android is still applying that change was accepted without error and the
+  tablet stayed in MTP, twice. The same request a few seconds later worked. For
+  the console daemon that was a real bug, not a bench quirk: it exits 0 when
+  `connect` fails, so one ignored request would leave a Pi unserved until the
+  next plug. `connect` now returns a typed `ConnectError` (displaying the same
+  strings as before, so the display daemon prints what it always did), and the
+  console daemon asks again on `NotReenumerated`, up to three times.
+
+### Not verified
+
+What follows has not run on a phone or a Pi; the tablet session above is the
+whole of the console's hardware testing.
+
+- **The S Pen after step 1.** Touch was exercised (the latency swipe moves the
+  Linux pointer); pen pressure, tilt and the side button need a person, as
+  always. Nothing in the pen path changed, but it was not watched.
+- **A phone.** Everything console-side ran on the tablet only.
+- **In the app**: a mismatched host key (the refusal screen and "Forget the
+  saved key"), a wrong password, and the heartbeat timeout on a pulled cable.
+- **The console daemon's retry on an ignored switch** compiles and is simple,
+  but has not been seen firing.
+- **`ID_USB_INTERFACES` on a Pi with a Samsung SSD**, and the sandbox directives
+  with libusb on a Pi (`DevicePolicy=closed` with `char-usb_device`, netlink for
+  hotplug, `IPAddressDeny`).
+- **The sysfs `get_throttled` path** is from the Raspberry Pi kernel's firmware
+  driver as remembered, not as read on this Pi; `vcgencmd` is the fallback.
+- **No arm64 build exists.** This laptop has no qemu binfmt for arm64 containers
+  and no cross toolchain; the package has only been built for amd64.
+- **Steps 5 (dashboards) and 6 (rescue mode, key install) are not started.**
+- The design's open question on Battery protection "Maximum" is still open; the
+  status line that is meant to answer it is untested.
+
+## 34. (Verified on the tablet against this laptop) FoxLoop Console dashboards
+
+Step 5 of the design: any web dashboard on the machine, opened on the phone
+through an SSH local port forward on the terminal's own session. Nothing changed
+in the daemon -- sshd carries forwards as extra channels, which is the whole
+reason the design chose SSH over a custom PTY protocol.
+
+### What was built
+
+- **`INTERNET`, console flavor only.** Android requires it for any socket,
+  loopback included, and for WebView. Checked with `aapt2` after the change: the
+  display's release APK still declares no `INTERNET` and its badging is
+  unchanged. A network security config allows cleartext to `127.0.0.1` alone.
+- **Saved per machine**, keyed by the AOA serial like the pinned host key: name,
+  remote port, path, and a local port chosen once and saved. The local port is
+  the remote one when it can be -- so Uptime Kuma reads `127.0.0.1:3001` -- or,
+  below 1024, which an app may not bind, the remote port plus 8000 (80 becomes
+  8080). On a collision, the first free port from 20000.
+- **Forward first, then load.** `ConsoleShell.forward` binds a `ServerSocket`
+  on 127.0.0.1 and hands it to sshj's `newLocalPortForwarder`, whose blocking
+  `listen()` gets its own thread. WebViews are kept per dashboard for the
+  session, so going to the terminal and back neither reloads a page nor drops
+  its sockets. Session end closes the forwards and destroys the WebViews.
+- **Navigation is held to the dashboard's own forward.** A main-frame
+  navigation anywhere else -- in practice a redirect to a configured public base
+  URL -- is stopped with a note saying which setting to clear, instead of
+  silently leaving the cable for the phone's own network.
+
+### One claim in the design that is not quite right
+
+The design gives each dashboard a stable local port so that "two dashboards
+never share cookies". A port does separate the *origin* -- local storage,
+IndexedDB, which is where Uptime Kuma keeps its login token -- but cookies are
+scoped by host alone, port ignored. Two dashboards on 127.0.0.1 that use the
+same cookie name will overwrite each other's. Separating that would need a
+loopback address per dashboard (127.0.0.2, ...), which costs a Host header many
+servers refuse (Vite, Django and others accept `localhost`/`127.0.0.1` only by
+default). Left as is, and written down where the port is chosen.
+
+### Tested
+
+On the tablet, against this laptop's sshd, with the console release build:
+
+- **Uptime Kuma 1.23.16**, run in Docker on this laptop for the purpose
+  (`-p 127.0.0.1:3001:3001`, removed afterwards). Its log recorded, from the
+  forward: a password login, a monitor being added, and later a **login by
+  token** -- the token in local storage outliving a reload, which is what the
+  stable port is for.
+- **Reported working by the user, not read from a log:** live updates in Kuma;
+  Apache's default page on port 80, which exercises the below-1024 mapping to
+  local 8080; two dashboards at once; switching between terminal and dashboard
+  without a reload. The crash buffer stayed empty throughout.
+
+30 JVM tests now (`DashboardRulesTest`: port choice, path normalising,
+validation, the storage format and its separators).
+
+### Not verified
+
+- **That the WebSocket upgrade happened.** Socket.IO always opens with HTTP
+  polling and upgrades after; Kuma logs only "New polling connection". Live
+  updates work over polling too, so the user's report does not settle it. A raw
+  TCP forward has no reason to break an upgrade, but it was not observed.
+- **A dashboard on a Pi**, over the Pi's sshd and a USB-2 port.
+- **A redirect off the cable** being stopped, and the error note for a port
+  nothing listens on; neither was triggered.
+- **Two dashboards sharing a cookie name** -- the limitation above -- was
+  reasoned about, not reproduced.
+- HTTPS dashboards are not supported at all: the forward is plain HTTP, and a
+  certificate for the machine's name would not match 127.0.0.1.
+

@@ -59,6 +59,13 @@ cp -r src packaging "$stage/daemon/"
 # A stale generated/ from a previous run would be shipped verbatim if the
 # rewrite step ever stopped running. It is rebuilt in the container every time.
 rm -rf "$stage/daemon/packaging/generated"
+# The AOA transport is a path dependency (`../crates/foxloop-aoa`), so it has to
+# sit beside daemon/ in the stage exactly as it does in the repository. Sources
+# only, for the same reason as above.
+rm -rf "$stage/crates"
+mkdir -p "$stage/crates/foxloop-aoa"
+cp "$repo_root/crates/foxloop-aoa/Cargo.toml" "$stage/crates/foxloop-aoa/"
+cp -r "$repo_root/crates/foxloop-aoa/src" "$stage/crates/foxloop-aoa/"
 
 out="$daemon_dir/target/packages"
 mkdir -p "$out"
