@@ -16,21 +16,27 @@ half is `android-client/app/src/console/.../ConsoleProtocol.kt`.
 
 ## Install on the machine
 
-There is no published package yet. Build one where it will run — `$auto`
-dependency resolution reads the build machine, so a package for Raspberry Pi OS
-(bookworm) is built on bookworm:
+The package is `foxloop-console_<version>_arm64.deb` for a 64-bit Raspberry Pi
+(and `_amd64.deb` for a PC). Built on Debian 12, it installs on Debian 12 and 13,
+Raspberry Pi OS included. On a machine you can already reach:
 
 ```sh
-# on the Pi
+sudo apt install ./foxloop-console_*_arm64.deb
+```
+
+On a machine you **cannot** reach — no screen, no SSH, no network — see the next
+section: that is the case this project is for.
+
+To build it yourself, `packaging/build-deb.sh` builds in a clean Debian 12
+container, and `packaging/build-deb.sh arm64` cross-compiles the Pi's package
+from a PC, no qemu needed. Without docker, on the machine itself:
+
+```sh
 sudo apt install build-essential pkg-config libusb-1.0-0-dev curl
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 cargo install --locked cargo-deb@3.7.0
 cd FoxLoop/console-daemon && cargo deb
-sudo apt install ./target/debian/foxloop-console_*.deb
 ```
-
-Or, on any machine with docker, `packaging/build-deb.sh` does the same in a
-clean Debian 12 container for docker's own architecture.
 
 The package installs:
 
@@ -42,7 +48,66 @@ The package installs:
 | `/usr/lib/sysusers.d/foxloop-console.conf` | the `foxloop` system user the unit runs as |
 
 sshd has to be running and has to allow password logins for the account you will
-use. Raspberry Pi OS does both by default once SSH is enabled.
+use. Raspberry Pi OS allows them by default once SSH is enabled; the offline
+installer below enables it for you, on loopback only.
+
+## Install with no screen, no SSH and no network
+
+The phone cannot deliver the package by itself: until `foxloop-console` is on the
+Pi, the Pi ignores a phone on the cable, and Android cannot pose as a USB stick or
+a keyboard without root. What every Pi does have is a small FAT boot partition
+that any computer can write. So the package goes there, with a one-shot installer,
+and the next boot runs it — the same mechanism Raspberry Pi Imager uses for its
+own first-boot setup (`systemd.run=` in `cmdline.txt`, see
+systemd-run-generator(8)).
+
+You need the arm64 `.deb`, `foxloop-console-install.sh` and
+`foxloop-console-prepare-boot.sh` from the release, and the Pi's SD card or SSD in
+another computer.
+
+**Linux or macOS:**
+
+```sh
+sh foxloop-console-prepare-boot.sh /path/to/bootfs foxloop-console_*_arm64.deb
+```
+
+`/path/to/bootfs` is the partition holding `cmdline.txt` and `config.txt`,
+usually mounted as `bootfs` (Raspberry Pi OS) or `RASPIFIRM` (Debian). Add
+`--allow-root-login` if root is the only account you have (see below).
+
+**Windows**, by hand:
+
+1. On the boot partition, make a folder `foxloop-console` and put the `.deb` in it,
+   and `foxloop-console-install.sh` renamed to `install.sh`.
+2. Copy `cmdline.txt` into that folder as `cmdline.txt.orig` — the installer puts
+   it back from there.
+3. Open `cmdline.txt` (one line — keep it one line) and add to the end, after a
+   space:
+   `systemd.run="/bin/sh /boot/firmware/foxloop-console/install.sh" systemd.run_success_action=reboot systemd.run_failure_action=reboot`
+4. For root logins, also create an empty file `allow-root-login` in the folder.
+
+Then put the card or SSD back and power the Pi on. It boots once into the
+installer, which, in this order:
+
+1. **puts `cmdline.txt` back** first, so nothing it does next can make it run
+   again;
+2. installs the package with `dpkg`, offline — its dependencies (`libusb-1.0-0`,
+   `openssh-server`) are already on Raspberry Pi OS;
+3. makes sure sshd will run. If SSH was off, it is turned on **listening on
+   127.0.0.1 only**, through a drop-in in `/etc/ssh/sshd_config.d/`, so installing
+   a USB console does not open SSH to your network. If it was on, it is left alone;
+4. with `--allow-root-login`, lets root log in with its password **from loopback
+   only** — the cable, and anything already running on the Pi. From the network,
+   root stays key-only. Root needs a password for this; the log warns if it has
+   none.
+
+and reboots normally. Plug in the phone. Everything the installer did, including
+the machine's SSH host key fingerprints for the app's first-login prompt, is in
+`foxloop-console/install.log` on the boot partition — readable from any computer,
+which is the point: there is no screen to show it.
+
+Do this on a Pi that has booted at least once. A freshly flashed card still has
+its own first-boot setup pending, and the helper refuses rather than race it.
 
 ## Use
 

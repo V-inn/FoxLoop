@@ -4139,3 +4139,92 @@ validation, the storage format and its separators).
 - HTTPS dashboards are not supported at all: the forward is plain HTTP, and a
   certificate for the machine's name would not match 127.0.0.1.
 
+## 35. (Built and tested in containers; not yet on the Pi) Installing the console with no way in
+
+The obvious gap in a console for a machine you cannot reach: getting the console
+onto it. Building on the Pi needs network (rustup, crates), and installing needs
+a shell. The question was whether the phone and the cable could do it.
+
+### Dead ends, recorded so nobody tries them again
+
+- **The cable alone cannot bootstrap it.** Until `foxloop-console` runs on the
+  Pi, nothing there answers the phone; the Pi sees an MTP device and stops.
+- **The phone cannot pose as something the Pi already understands.** A USB
+  stick needs mass storage, which Android removed; a keyboard needs a HID gadget,
+  which needs root. Neither is open to an app.
+
+### What works: the boot partition
+
+Every Pi boot drive has a FAT partition any computer can write, and the firmware
+hands `cmdline.txt` from it to the kernel. `systemd.run=` on the kernel command
+line makes systemd-run-generator boot into that one command instead of the normal
+targets -- the mechanism Raspberry Pi Imager's own first-boot script rides. So:
+
+- `prepare-boot.sh` (POSIX sh, Linux and macOS) copies the `.deb` and
+  `install.sh` into `foxloop-console/` on the partition, backs `cmdline.txt` up
+  and appends the entry. Windows gets the same steps by hand in the README.
+- `install.sh` runs on the Pi at the next boot and **disarms before anything
+  else** -- restoring `cmdline.txt` from the backup. Read in
+  systemd-run-generator(8) on this machine before writing it: the generated unit
+  is *booted into*, and shuts the machine down when done unless told
+  otherwise; the kit says reboot on success and on failure. A failure that left
+  the entry in place would therefore reboot into itself forever, on a machine
+  with no screen. Then `dpkg -i`, offline; then sshd; then the log.
+- **sshd is turned on for loopback only if it was off.** A USB console should not
+  open SSH to the network as a side effect. A drop-in with `ListenAddress
+  127.0.0.1` and `::1`; checked with `sshd -T` on OpenSSH 10.0.
+- **`--allow-root-login` is loopback-only.** The user's Pi runs Debian 13, whose
+  Raspberry Pi images may have root as the only account, and sshd refuses root
+  passwords. A `Match Address 127.0.0.1,::1` drop-in allows them from the cable.
+  Whether a `Match` in an included file leaks into the rest of `sshd_config` is
+  not said in the man page; checked with `sshd -T` instead: it does not, and from
+  a LAN address root stays `without-password`.
+- **Everything goes to `install.log` on the boot partition**, including the host
+  key fingerprints the app's first login will show -- the only place someone
+  with no screen can read them.
+- The helper refuses a `cmdline.txt` that already has a `systemd.run=` entry: on
+  a never-booted card that is Imager's first-boot script, and the two would each
+  clean `cmdline.txt` up their own way.
+
+### Getting an arm64 package at all
+
+`build-in-container.sh` now cross-compiles: Debian's multiarch `libusb-1.0-0-dev:arm64`,
+`gcc-aarch64-linux-gnu`, `PKG_CONFIG_ALLOW_CROSS` and `cargo deb --target`. Built
+here, no qemu: an aarch64 ELF whose package asks for `libc6 (>= 2.34)`,
+`libusb-1.0-0 (>= 2:1.0.8)`, `openssh-server` -- bookworm's libc, so it installs on
+Debian 12 and 13 alike. CI instead builds arm64 natively on GitHub's
+`ubuntu-24.04-arm` runner through the same `build-deb.sh`, and attaches the
+package and the two kit scripts to releases.
+
+### Tested
+
+In throwaway `debian:13` containers, running the exact command the cmdline entry
+holds, against the amd64 build of the same package, with the kit laid out under
+its release names (`foxloop-console-prepare-boot.sh`, `foxloop-console-install.sh`):
+
+- **sshd off, `--allow-root-login`:** `cmdline.txt` restored byte for byte; the
+  package installed and its `foxloop` user created; `ssh.service` enabled;
+  `sshd -T` showing `listenaddress 127.0.0.1:22` and `[::1]:22`,
+  `permitrootlogin yes` from 127.0.0.1 and `without-password` from 192.168.1.9;
+  the fingerprints in the log.
+- **sshd already on:** left alone, no drop-ins written.
+- **openssh-server missing:** disarmed, the dependency named in the log, the
+  package purged, exit 1.
+- `prepare-boot.sh` on a fake partition: one line kept, an exact backup,
+  idempotent re-runs, and refusals for an amd64 package, a directory that is not
+  a boot partition, and a pending first-boot script.
+- `actionlint` on the workflow: clean.
+
+### Not verified
+
+- **On a Pi, at all.** In a container there is no early boot: whether
+  `systemd.run=` from `cmdline.txt` is honoured on the Pi's kernel and firmware,
+  whether `/boot/firmware` is mounted when the unit runs, and whether `dpkg`'s
+  postinst behaves there (udev, `systemd-sysusers`) are all reasoning, not
+  observation.
+- **The arm64 binary has never run.** It is the right architecture and links
+  the right libraries; nothing more is known.
+- **The CI job has not run.** `ubuntu-24.04-arm` with docker on the runner is
+  what GitHub documents; the first tagged or manual run will say.
+- The Windows steps were written, not followed.
+

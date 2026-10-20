@@ -82,9 +82,47 @@ jobs:
           path: ${{ matrix.artifacts }}/*.${{ matrix.format }}
           if-no-files-found: error
 
+  # FoxLoop Console's machine half. A separate job, not a matrix row above,
+  # because its arm64 package is for a Raspberry Pi and is built natively on
+  # GitHub's arm64 runner -- and because it runs the same script as a local
+  # build (packaging/build-deb.sh, docker on the runner itself), rather than
+  # running inside a job container: one path, not two.
+  #
+  # The offline kit (install.sh, prepare-boot.sh) rides along with the arm64
+  # package, since the two are only useful together: they install that package
+  # on a Pi with no screen and no network. See console-daemon/README.md.
+  console:
+    name: foxloop-console (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build package
+        run: bash console-daemon/packaging/build-deb.sh
+
+      - name: Add the offline install kit
+        if: matrix.arch == 'arm64'
+        run: |
+          cp console-daemon/packaging/offline/install.sh console-daemon/target/packages/foxloop-console-install.sh
+          cp console-daemon/packaging/offline/prepare-boot.sh console-daemon/target/packages/foxloop-console-prepare-boot.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: foxloop-console-${{ matrix.arch }}
+          path: console-daemon/target/packages/*
+          if-no-files-found: error
+
   release:
     name: Attach to release
-    needs: packages
+    needs: [packages, console]
     runs-on: ubuntu-latest
     # workflow_dispatch runs have no tag to attach anything to; they exist to
     # prove the packaging still builds.
